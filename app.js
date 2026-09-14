@@ -66,9 +66,15 @@ async function fromOpenLibrary(isbn) {
   const d = await fetchJson(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
   const b = d[`ISBN:${isbn}`];
   if (!b) return null;
+  let authors = (b.authors || []).map((a) => a.name).filter((n, i, all) => all.indexOf(n) === i).join(', ');
+  if (!authors) {
+    // Edition records often lack authors; the work-level search index usually has them.
+    const s = await fetchJson(`https://openlibrary.org/search.json?isbn=${isbn}&fields=author_name&limit=1`).catch(() => null);
+    authors = (s?.docs?.[0]?.author_name || []).join(', ');
+  }
   return {
     title: b.title + (b.subtitle ? ': ' + b.subtitle : ''),
-    authors: (b.authors || []).map((a) => a.name).filter((n, i, all) => all.indexOf(n) === i).join(', '),
+    authors,
     publisher: b.publishers?.[0]?.name || '',
     year: (b.publish_date || '').match(/\d{4}/)?.[0] || '',
     cover: b.cover?.medium || '',
@@ -122,7 +128,42 @@ async function fromChitaiGorod(isbn) {
   };
 }
 
+// Loads an image URL; resolves to its natural size, or null if it fails.
+function probeImage(url, ms = 8000) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const done = (v) => { clearTimeout(t); img.onload = img.onerror = null; resolve(v); };
+    const t = setTimeout(() => done(null), ms);
+    img.onload = () => done({ w: img.naturalWidth, h: img.naturalHeight });
+    img.onerror = () => done(null);
+    img.src = url;
+  });
+}
+
+// Cover images addressable by ISBN alone (no API quota). Probed in parallel, first usable one wins.
+async function findCover(isbn) {
+  const candidates = [
+    { url: `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg?default=false` }, // 404 when missing
+  ];
+  if (isIsbn(isbn) && isbn.startsWith('978')) {
+    const body = isbn.slice(3, 12);
+    let sum = 0;
+    for (let i = 0; i < 9; i++) sum += +body[i] * (10 - i);
+    const check = (11 - (sum % 11)) % 11;
+    // Amazon serves a 1×1 GIF when it has no cover.
+    candidates.push({ url: `https://images-na.ssl-images-amazon.com/images/P/${body}${check === 10 ? 'X' : check}.01.LZZZZZZZ.jpg` });
+  }
+  // Google serves a 128×170 "image not available" PNG when it has no cover.
+  candidates.push({ url: `https://books.google.com/books/content?vid=ISBN${isbn}&printsec=frontcover&img=1&zoom=1`, placeholder: [128, 170] });
+
+  const sizes = await Promise.all(candidates.map((c) => probeImage(c.url)));
+  const i = sizes.findIndex((size, i) => size && size.w > 20 && size.h > 20 &&
+    !(candidates[i].placeholder && size.w === candidates[i].placeholder[0] && size.h === candidates[i].placeholder[1]));
+  return i === -1 ? '' : candidates[i].url;
+}
+
 // Russian editions (978-5) are best covered by Chitai-gorod; others by Open Library.
+// Empty fields are filled from later sources; a cover is searched by ISBN if no source has one.
 // Returns { found, report } — report lists each source's outcome so a miss can be diagnosed on the phone.
 async function lookup(isbn) {
   const cg = ['Chitai-gorod', fromChitaiGorod], ol = ['Open Library', fromOpenLibrary], gb = ['Google Books', fromGoogle];
@@ -138,10 +179,11 @@ async function lookup(isbn) {
       report.push(`${name}: error ${err.name === 'Error' ? err.message : err.name + ' ' + err.message}`);
     }
     if (!r) continue;
-    if (!found) found = r;
-    else if (!found.cover && r.cover) found.cover = r.cover;
-    if (found.cover) break;
+    found ??= {};
+    for (const [k, v] of Object.entries(r)) if (!found[k] && v) found[k] = v;
+    if (found.title && found.authors && found.cover) break;
   }
+  if (found && !found.cover) found.cover = await findCover(isbn);
   return { found, report };
 }
 
@@ -258,6 +300,10 @@ $('deleteBtn').addEventListener('click', () => {
   save();
   closeSheet();
 });
+// A cover URL that stops working falls back to the placeholder.
+$('list').addEventListener('error', (e) => {
+  if (e.target.tagName === 'IMG') e.target.outerHTML = '<div class="cover-ph">No cover</div>';
+}, true);
 $('list').addEventListener('click', (e) => {
   const el = e.target.closest('.book');
   if (el) openSheet(books.find((b) => b.id === el.dataset.id));
@@ -564,4 +610,20 @@ document.addEventListener('keydown', (e) => {
   if (!$('scanner').hidden) stopScanner();
   else if (!$('sheet').hidden) closeSheet();
 });
+
+// Books saved before cover/author fallbacks existed: fill their empty fields once, quietly.
+const BACKFILL = 1;
 render();
+backfill();
+
+async function backfill() {
+  for (const b of books.filter((b) => b.isbn && (!b.cover || !b.authors) && (b.backfill || 0) < BACKFILL)) {
+    const { found } = await lookup(b.isbn).catch(() => ({}));
+    const cover = b.cover || found?.cover || await findCover(b.isbn);
+    if (!books.includes(b)) continue; // deleted meanwhile
+    if (found) for (const k of ['authors', 'publisher', 'year']) if (!b[k] && found[k]) b[k] = found[k];
+    if (!b.cover && cover) b.cover = cover;
+    b.backfill = BACKFILL;
+    save();
+  }
+}
