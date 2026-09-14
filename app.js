@@ -56,8 +56,8 @@ function timeout(ms = 10000) {
   return c.signal;
 }
 
-async function fetchJson(url) {
-  const r = await fetch(url, { signal: timeout() });
+async function fetchJson(url, ms) {
+  const r = await fetch(url, { signal: timeout(ms) });
   if (!r.ok) throw new Error(r.status);
   return r.json();
 }
@@ -126,6 +126,26 @@ async function fromChitaiGorod(isbn) {
     year: a.yearPublishing ? String(a.yearPublishing) : '',
     cover: a.picture ? `https://content.img-gorod.ru${a.picture}?width=400&height=560&fit=bounds` : '',
   };
+}
+
+// Goodreads has no public API and sends no CORS headers; its search autocomplete returns the rating.
+// Primary: a small server route on shimansky.nl that queries it. Fallback: a public CORS proxy (often rate-limited).
+const GOODREADS = 'https://www.goodreads.com';
+// Same-origin when served from shimansky.nl/books, cross-origin (CORS-allowed) from other hosts.
+const RATING_API = location.pathname.startsWith('/books') ? '/api/goodreads' : 'https://shimansky.nl/api/goodreads';
+
+async function fromGoodreads(isbn) {
+  try {
+    const d = await fetchJson(`${RATING_API}?isbn=${isbn}`);
+    return d && { rating: d.rating, ratingsCount: d.ratingsCount, goodreadsUrl: d.url };
+  } catch { /* route not deployed or down */ }
+  const url = `${GOODREADS}/book/auto_complete?format=json&q=${isbn}`;
+  const wrapped = await fetchJson(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, 20000);
+  if (!wrapped.status || wrapped.status.http_code !== 200) throw new Error('proxy ' + wrapped.status?.http_code);
+  const list = JSON.parse(wrapped.contents);
+  const b = Array.isArray(list) ? list[0] : null;
+  if (!b || !b.bookUrl) return null;
+  return { rating: parseFloat(b.avgRating) || 0, ratingsCount: b.ratingsCount || 0, goodreadsUrl: GOODREADS + b.bookUrl };
 }
 
 // Loads an image URL; resolves to its natural size, or null if it fails.
@@ -223,6 +243,7 @@ function render() {
     (!q || [b.title, b.authors, b.isbn, b.publisher, b.location, b.notes].some((f) => (f || '').toLowerCase().includes(q))));
 
   if (sort === 'title') shown.sort((a, b) => collator.compare(a.title, b.title));
+  else if (sort === 'rating') shown.sort((a, b) => (b.rating || 0) - (a.rating || 0) || collator.compare(a.title, b.title));
   else if (sort === 'author') shown.sort((a, b) => collator.compare(a.authors || '￿', b.authors || '￿') || collator.compare(a.title, b.title));
   else shown.sort((a, b) => b.added - a.added);
 
@@ -233,7 +254,7 @@ function render() {
       ${b.cover ? `<img src="${esc(b.cover)}" alt="" loading="lazy">` : '<div class="cover-ph">No cover</div>'}
       <div class="meta">
         <div class="title">${esc(b.title)}</div>
-        <div class="sub">${esc([b.authors, b.year].filter(Boolean).join(' · '))}</div>
+        <div class="sub">${esc([b.authors, b.year, b.rating ? `★ ${b.rating.toFixed(2)}` : ''].filter(Boolean).join(' · '))}</div>
         ${b.location ? `<div class="tag">${esc(b.location)}</div>` : ''}
       </div>
     </button>`).join('') ||
@@ -258,6 +279,11 @@ function openSheet(book, { isNew = false, fromScan = false, note = '', warn = fa
   $('sheetNote').className = 'note' + (warn ? ' warn' : '');
   $('sheetDetail').textContent = detail;
   $('sheetDetail').hidden = !detail;
+  $('grLink').hidden = !book.goodreadsUrl;
+  if (book.goodreadsUrl) {
+    $('grLink').href = book.goodreadsUrl;
+    $('grLink').textContent = `Goodreads ★ ${book.rating.toFixed(2)} · ${book.ratingsCount.toLocaleString('ru-RU')} ratings`;
+  }
   $('saveBtn').textContent = isNew ? 'Add book' : 'Save';
   $('deleteBtn').hidden = isNew;
   $('saveNextBtn').hidden = !(isNew && fromScan);
@@ -289,6 +315,7 @@ $('bookForm').addEventListener('submit', (e) => {
   closeSheet();
   toast(isNew ? 'Added' : 'Saved');
   if (next) startScanner();
+  if (isNew) updateRatings();
 });
 
 $('fCoverImg').addEventListener('error', () => { $('fCoverImg').hidden = true; $('fCoverPh').hidden = false; });
@@ -613,8 +640,37 @@ document.addEventListener('keydown', (e) => {
 
 // Books saved before cover/author fallbacks existed: fill their empty fields once, quietly.
 const BACKFILL = 1;
+// Goodreads ratings: fetched one book at a time, re-checked after 90 days (30 if not found before).
+const DAY = 86400000;
+let ratingsRunning = false;
+
 render();
 backfill();
+updateRatings();
+async function updateRatings() {
+  if (ratingsRunning) return;
+  ratingsRunning = true;
+  try {
+    const due = (b) => b.isbn && Date.now() - (b.ratingChecked || 0) > (b.goodreadsUrl ? 90 : 30) * DAY;
+    let b;
+    while ((b = books.find(due))) {
+      let gr;
+      try {
+        gr = await fromGoodreads(b.isbn);
+      } catch {
+        return; // proxy or network down: try again next time the app opens
+      }
+      if (books.includes(b)) {
+        if (gr) Object.assign(b, gr);
+        b.ratingChecked = Date.now();
+        save();
+      }
+      await sleep(1000);
+    }
+  } finally {
+    ratingsRunning = false;
+  }
+}
 
 async function backfill() {
   for (const b of books.filter((b) => b.isbn && (!b.cover || !b.authors) && (b.backfill || 0) < BACKFILL)) {

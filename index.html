@@ -5,11 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f7f5f0">
 <title>Bookshelf</title>
-<script>
-  // Served as /books (no trailing slash) on hosts that strip it: make relative asset URLs resolve inside the folder.
-  if (!/\/$|\.html$/.test(location.pathname)) document.write('<base href="' + location.pathname + '/">');
-</script>
-<link rel="stylesheet" href="app.css?v=8">
+<link rel="stylesheet" href="app.css?v=9">
 </head>
 <body>
 
@@ -23,7 +19,7 @@
     <button data-action="export">Export backup</button>
     <button data-action="import">Import backup</button>
     <button data-action="gkey">Google Books API key…</button>
-    <span class="version">Version 8</span>
+    <span class="version">Version 9</span>
   </div>
 </header>
 
@@ -33,6 +29,7 @@
     <option value="added">Recently added</option>
     <option value="title">Title</option>
     <option value="author">Author</option>
+    <option value="rating">Rating</option>
   </select>
 </div>
 
@@ -76,6 +73,7 @@
         <p id="sheetNote" class="note"></p>
         <p class="isbn-line">ISBN <span id="fIsbnText"></span></p>
         <p id="sheetDetail" class="isbn-line" hidden></p>
+        <a id="grLink" class="isbn-line gr-link" target="_blank" rel="noopener" hidden></a>
       </div>
     </div>
     <label>Title <input name="title" required></label>
@@ -99,6 +97,6 @@
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

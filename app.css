@@ -142,6 +142,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 .note { margin: 0 0 4px; font-weight: 600; }
 .note.warn { color: var(--danger); }
 .isbn-line { margin: 0; color: var(--muted); font-size: 13px; }
+.gr-link { display: inline-block; margin-top: 4px; color: var(--accent); text-decoration: none; }
+.gr-link:hover { text-decoration: underline; }
 .sheet label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); flex: 1; min-width: 0; }
 .sheet label input, .sheet label textarea { color: var(--ink); font-size: 16px; resize: vertical; width: 100%; }
 .row { display: flex; gap: 8px; }
