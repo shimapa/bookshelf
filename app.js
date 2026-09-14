@@ -300,8 +300,16 @@ $('isbnForm').addEventListener('submit', (e) => {
 
 /* ---------- camera scanner ---------- */
 
+const TESSERACT = 'https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js';
+const SCAN_MODE_KEY = 'bookshelf.scanMode';
+
 let stream = null;
+let scanRun = 0; // bumped on close / mode switch so the running loop stops
+let scanMode = localStorage.getItem(SCAN_MODE_KEY) === 'text' ? 'text' : 'barcode';
 let detectorPromise = null;
+let ocrPromise = null;
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function getDetector() {
   const formats = ['ean_13', 'ean_8', 'upc_a', 'upc_e'];
@@ -319,36 +327,84 @@ function getDetector() {
   return detectorPromise;
 }
 
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const el = document.createElement('script');
+    el.src = src;
+    el.onload = resolve;
+    el.onerror = () => reject(new Error('Failed to load ' + src));
+    document.head.append(el);
+  });
+}
+
+// Tesseract OCR worker, loaded only the first time text mode is used (a few MB).
+function getOcrWorker() {
+  ocrPromise ??= (async () => {
+    if (!window.Tesseract) await loadScript(TESSERACT);
+    const worker = await window.Tesseract.createWorker('eng');
+    await worker.setParameters({ tessedit_char_whitelist: '0123456789Xx-ISBN ', tessedit_pageseg_mode: '6' });
+    return worker;
+  })();
+  ocrPromise.catch(() => { ocrPromise = null; });
+  return ocrPromise;
+}
+
 async function startScanner() {
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
     toast('Camera needs https:// or localhost. Type the ISBN instead.', 4000);
     return;
   }
+  setScanMode(scanMode);
   $('scanner').hidden = false;
   $('scanHint').textContent = 'Starting camera…';
   try {
-    const [detector, s] = await Promise.all([
-      getDetector(),
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }),
-    ]);
+    const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+    if ($('scanner').hidden) { s.getTracks().forEach((t) => t.stop()); return; } // closed while starting
     stream = s;
-    if ($('scanner').hidden) { stopScanner(); return; } // closed while starting
     const video = $('video');
     video.srcObject = stream;
     await video.play();
-    $('scanHint').textContent = 'Point at the barcode';
-    scanLoop(detector, video);
+    runScan();
   } catch (err) {
     stopScanner();
-    toast(err.name === 'NotAllowedError' ? 'Camera permission denied' : 'Could not start scanner', 3500);
+    toast(err.name === 'NotAllowedError' ? 'Camera permission denied' : 'Could not start camera', 3500);
   }
 }
 
-async function scanLoop(detector, video) {
+function setScanMode(mode) {
+  scanMode = mode;
+  localStorage.setItem(SCAN_MODE_KEY, mode);
+  $('scanner').dataset.mode = mode;
+  for (const b of document.querySelectorAll('.scan-modes button')) b.classList.toggle('on', b.dataset.mode === mode);
+  if (stream) runScan();
+}
+
+async function runScan() {
+  const run = ++scanRun;
+  const alive = () => stream && run === scanRun;
+  const video = $('video');
+  try {
+    if (scanMode === 'barcode') {
+      $('scanHint').textContent = 'Point at the barcode';
+      barcodeLoop(await getDetector(), video, alive);
+    } else {
+      $('scanHint').textContent = 'Loading text recognition…';
+      const worker = await getOcrWorker();
+      if (!alive()) return;
+      $('scanHint').textContent = 'Fit the printed ISBN number in the frame';
+      textLoop(worker, video, alive);
+    }
+  } catch {
+    if (alive()) $('scanHint').textContent = 'Scanner failed to load — check the connection';
+  }
+}
+
+async function barcodeLoop(detector, video, alive) {
   let lastOther = null, otherHits = 0;
-  while (stream) {
+  while (alive()) {
     try {
       const codes = (await detector.detect(video)).map((c) => normalizeCode(c.rawValue)).filter(Boolean);
+      if (!alive()) return;
       const isbn = codes.find(isIsbn);
       if (isbn) return onScanned(isbn);
       // Non-ISBN barcode: require a few identical reads before accepting.
@@ -358,8 +414,64 @@ async function scanLoop(detector, video) {
         if (otherHits >= 4) return onScanned(codes[0]);
       }
     } catch { /* frame not ready */ }
-    await new Promise((r) => setTimeout(r, 120));
+    await sleep(120);
   }
+}
+
+async function textLoop(worker, video, alive) {
+  let last = null;
+  while (alive()) {
+    const crop = frameCrop(video);
+    if (crop) {
+      try {
+        const { data } = await worker.recognize(crop);
+        if (!alive()) return;
+        const hit = findIsbnInText(data.text);
+        // A number printed after "ISBN" is trusted at once; a bare 978… number must be read twice.
+        if (hit && (hit.labelled || hit.code === last)) return onScanned(hit.code);
+        last = hit?.code ?? null;
+      } catch { /* try next frame */ }
+    }
+    await sleep(100);
+  }
+}
+
+// The part of the video under the on-screen frame, upscaled and grayscale for OCR.
+function frameCrop(video) {
+  const vw = video.videoWidth, vh = video.videoHeight;
+  if (!vw || !vh) return null;
+  const box = video.getBoundingClientRect();
+  const fr = document.querySelector('.frame').getBoundingClientRect();
+  const scale = Math.max(box.width / vw, box.height / vh); // object-fit: cover
+  const sx = (fr.left - box.left - (box.width - vw * scale) / 2) / scale;
+  const sy = (fr.top - box.top - (box.height - vh * scale) / 2) / scale;
+  const sw = fr.width / scale, sh = fr.height / scale;
+  const c = document.createElement('canvas');
+  c.width = Math.round(Math.min(1400, sw * 2));
+  c.height = Math.round((c.width * sh) / sw);
+  const ctx = c.getContext('2d');
+  ctx.filter = 'grayscale(1) contrast(1.5)';
+  ctx.drawImage(video, sx, sy, sw, sh, 0, 0, c.width, c.height);
+  return c;
+}
+
+// Finds a checksum-valid ISBN in OCR text → { code (ISBN-13), labelled } or null.
+// ISBN-10 is only accepted on a line that says "ISBN", since random digits pass its checksum too often.
+function findIsbnInText(text) {
+  for (const line of text.toUpperCase().split('\n')) {
+    const labelled = /[I1L|]\s*S\s*[B8]\s*N/.test(line);
+    const digits = line.replace(/[^0-9X]/g, '');
+    for (let i = 0; i + 10 <= digits.length; i++) {
+      const w13 = digits.slice(i, i + 13);
+      if (/^97[89]\d{10}$/.test(w13) && normalizeCode(w13)) return { code: w13, labelled };
+      const w10 = digits.slice(i, i + 10);
+      if (labelled && /^\d{9}[\dX]$/.test(w10) && !/^97[89]/.test(w10)) {
+        const code = normalizeCode(w10);
+        if (code) return { code, labelled };
+      }
+    }
+  }
+  return null;
 }
 
 function onScanned(code) {
@@ -369,6 +481,7 @@ function onScanned(code) {
 }
 
 function stopScanner() {
+  scanRun++;
   stream?.getTracks().forEach((t) => t.stop());
   stream = null;
   $('video').srcObject = null;
@@ -377,6 +490,10 @@ function stopScanner() {
 
 $('scanBtn').addEventListener('click', startScanner);
 $('closeScan').addEventListener('click', stopScanner);
+$('scanModes').addEventListener('click', (e) => {
+  const mode = e.target.closest('button')?.dataset.mode;
+  if (mode && mode !== scanMode) setScanMode(mode);
+});
 
 /* ---------- menu: backup + settings ---------- */
 

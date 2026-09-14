@@ -116,6 +116,14 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
   box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.45);
 }
 .scan-hint { position: absolute; left: 0; right: 0; top: calc(45% + min(20vw, 105px) + 16px); text-align: center; color: #fff; margin: 0; }
+.scanner[data-mode="text"] .frame { aspect-ratio: 4 / 1; }
+.scanner[data-mode="text"] .scan-hint { top: calc(45% + min(10vw, 52.5px) + 16px); }
+.scan-modes {
+  position: absolute; left: 50%; top: calc(20px + env(safe-area-inset-top)); transform: translateX(-50%);
+  display: flex; padding: 3px; border-radius: 999px; background: rgb(0 0 0 / 0.55); z-index: 1;
+}
+.scan-modes button { border: 0; background: none; color: #fff; padding: 7px 16px; border-radius: 999px; cursor: pointer; font-weight: 550; white-space: nowrap; }
+.scan-modes button.on { background: #fff; color: #111; }
 .close-scan { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(32px + env(safe-area-inset-bottom)); }
 
 /* Sheet */

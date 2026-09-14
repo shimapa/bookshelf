@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f7f5f0">
 <title>Bookshelf</title>
-<link rel="stylesheet" href="app.css?v=4">
+<link rel="stylesheet" href="app.css?v=6">
 </head>
 <body>
 
@@ -19,7 +19,7 @@
     <button data-action="export">Export backup</button>
     <button data-action="import">Import backup</button>
     <button data-action="gkey">Google Books API key…</button>
-    <span class="version">Version 4</span>
+    <span class="version">Version 6</span>
   </div>
 </header>
 
@@ -53,6 +53,10 @@
 <!-- Camera scanner -->
 <div id="scanner" class="scanner" hidden>
   <video id="video" playsinline muted></video>
+  <div id="scanModes" class="scan-modes">
+    <button type="button" data-mode="barcode">Barcode</button>
+    <button type="button" data-mode="text">ISBN text</button>
+  </div>
   <div class="frame"></div>
   <p id="scanHint" class="scan-hint">Point at the barcode</p>
   <button id="closeScan" class="btn close-scan">Close</button>
@@ -91,6 +95,6 @@
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=4"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>
