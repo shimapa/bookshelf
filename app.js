@@ -78,9 +78,44 @@ async function fromGoogle(isbn) {
   };
 }
 
-// Russian editions (978-5) are better covered by Google Books; others by Open Library.
+// Chitai-gorod (Russian bookstore) search API: needs a free anonymous token, cached until it expires.
+const CG_API = 'https://web-gate.chitai-gorod.ru/api';
+const CG_TOKEN_KEY = 'bookshelf.cgToken';
+
+async function chitaiGorodToken(fresh = false) {
+  const cached = JSON.parse(localStorage.getItem(CG_TOKEN_KEY) || 'null');
+  if (!fresh && cached && cached.exp * 1000 > Date.now() + 60000) return cached.token;
+  const r = await fetch(`${CG_API}/v1/auth/anonymous`, { method: 'POST', signal: AbortSignal.timeout(10000) });
+  if (!r.ok) throw new Error(r.status);
+  const { token } = await r.json();
+  localStorage.setItem(CG_TOKEN_KEY, JSON.stringify({ token: token.accessToken, exp: token.expAccessToken }));
+  return token.accessToken;
+}
+
+async function fromChitaiGorod(isbn) {
+  const search = async (token) => fetch(`${CG_API}/v2/search/product?phrase=${isbn}`, {
+    headers: { Authorization: token },
+    signal: AbortSignal.timeout(10000),
+  });
+  let r = await search(await chitaiGorodToken());
+  if (r.status === 401) r = await search(await chitaiGorodToken(true));
+  if (!r.ok) throw new Error(r.status);
+  const a = (await r.json()).included?.find((i) => i.type === 'product')?.attributes;
+  if (!a) return null;
+  return {
+    title: a.title,
+    authors: (a.authors || []).map((p) => [p.firstName, p.lastName].filter(Boolean).join(' ')).join(', '),
+    publisher: a.publisher?.title || '',
+    year: a.yearPublishing ? String(a.yearPublishing) : '',
+    cover: a.picture ? `https://content.img-gorod.ru${a.picture}?width=400&height=560&fit=bounds` : '',
+  };
+}
+
+// Russian editions (978-5) are best covered by Chitai-gorod; others by Open Library.
 async function lookup(isbn) {
-  const sources = isbn.startsWith('9785') ? [fromGoogle, fromOpenLibrary] : [fromOpenLibrary, fromGoogle];
+  const sources = isbn.startsWith('9785')
+    ? [fromChitaiGorod, fromOpenLibrary, fromGoogle]
+    : [fromOpenLibrary, fromGoogle, fromChitaiGorod];
   let found = null;
   for (const src of sources) {
     const r = await src(isbn).catch(() => null);
