@@ -2,11 +2,14 @@
 
 const STORE_KEY = 'bookshelf.books';
 const GKEY_KEY = 'bookshelf.googleKey';
+const LAST_LOC_KEY = 'bookshelf.lastLocation';
+const FIELDS = ['title', 'authors', 'publisher', 'year', 'location', 'notes'];
 const POLYFILL = 'https://cdn.jsdelivr.net/npm/barcode-detector@3.2.2/ponyfill/+esm';
 const collator = new Intl.Collator(['ru', 'en'], { sensitivity: 'base', numeric: true });
 
 const $ = (id) => document.getElementById(id);
 let books = load();
+let locFilter = null; // null = all, '' = books without a location, otherwise a location name
 
 /* ---------- storage ---------- */
 
@@ -148,11 +151,34 @@ function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// Distinct locations, sorted, with book counts.
+function locations() {
+  const counts = new Map();
+  for (const b of books) if (b.location) counts.set(b.location, (counts.get(b.location) || 0) + 1);
+  return [...counts].sort((a, b) => collator.compare(a[0], b[0]));
+}
+
+function renderLocations() {
+  const locs = locations();
+  if (locFilter && !locs.some(([name]) => name === locFilter)) locFilter = null;
+  const unplaced = books.filter((b) => !b.location).length;
+  const chip = (value, label, n) => `<button class="chip${locFilter === value ? ' on' : ''}" data-loc="${value === null ? '*' : esc(value)}">${esc(label)} <span>${n}</span></button>`;
+  $('locations').hidden = locs.length === 0;
+  $('locations').innerHTML = locs.length === 0 ? '' : [
+    chip(null, 'All', books.length),
+    ...locs.map(([name, n]) => chip(name, name, n)),
+    unplaced ? chip('', 'No location', unplaced) : '',
+  ].join('');
+  $('locationList').innerHTML = locs.map(([name]) => `<option value="${esc(name)}">`).join('');
+}
+
 function render() {
+  renderLocations();
   const q = $('search').value.trim().toLowerCase();
   const sort = $('sort').value;
   let shown = books.filter((b) =>
-    !q || [b.title, b.authors, b.isbn, b.publisher, b.notes].some((f) => (f || '').toLowerCase().includes(q)));
+    (locFilter === null || (b.location || '') === locFilter) &&
+    (!q || [b.title, b.authors, b.isbn, b.publisher, b.location, b.notes].some((f) => (f || '').toLowerCase().includes(q))));
 
   if (sort === 'title') shown.sort((a, b) => collator.compare(a.title, b.title));
   else if (sort === 'author') shown.sort((a, b) => collator.compare(a.authors || '￿', b.authors || '￿') || collator.compare(a.title, b.title));
@@ -166,6 +192,7 @@ function render() {
       <div class="meta">
         <div class="title">${esc(b.title)}</div>
         <div class="sub">${esc([b.authors, b.year].filter(Boolean).join(' · '))}</div>
+        ${b.location ? `<div class="tag">${esc(b.location)}</div>` : ''}
       </div>
     </button>`).join('') ||
     (books.length ? '<p class="empty">Nothing matches your search.</p>' : '');
@@ -178,7 +205,9 @@ let editing = null; // { book, isNew, fromScan }
 function openSheet(book, { isNew = false, fromScan = false, note = '', warn = false, detail = '' } = {}) {
   editing = { book, isNew, fromScan };
   const f = $('bookForm');
-  for (const name of ['title', 'authors', 'publisher', 'year', 'notes']) f.elements[name].value = book[name] || '';
+  for (const name of FIELDS) f.elements[name].value = book[name] || '';
+  // New books default to the last location used, so a whole shelf can be scanned in a row.
+  if (isNew && !book.location) f.elements.location.value = localStorage.getItem(LAST_LOC_KEY) || '';
   $('fIsbnText').textContent = book.isbn || '—';
   $('fCoverImg').hidden = !book.cover;
   $('fCoverPh').hidden = !!book.cover;
@@ -203,7 +232,11 @@ $('bookForm').addEventListener('submit', (e) => {
   e.preventDefault();
   const f = e.target;
   const { book, isNew } = editing;
-  for (const name of ['title', 'authors', 'publisher', 'year', 'notes']) book[name] = f.elements[name].value.trim();
+  for (const name of FIELDS) book[name] = f.elements[name].value.trim().replace(/\s+/g, ' ');
+  // Reuse an existing location's spelling when only the case differs ("гостиная" → "Гостиная").
+  const same = locations().find(([name]) => name.toLowerCase() === book.location.toLowerCase());
+  if (same) book.location = same[0];
+  if (isNew) localStorage.setItem(LAST_LOC_KEY, book.location);
   if (isNew) {
     book.id = book.isbn || (crypto.randomUUID?.() || String(Date.now()));
     book.added = Date.now();
@@ -402,6 +435,12 @@ function hideToast() { $('toast').hidden = true; }
 /* ---------- init ---------- */
 
 $('search').addEventListener('input', render);
+$('locations').addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  locFilter = chip.dataset.loc === '*' ? null : chip.dataset.loc;
+  render();
+});
 $('sort').addEventListener('change', render);
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;

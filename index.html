@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f7f5f0">
 <title>Bookshelf</title>
-<link rel="stylesheet" href="app.css?v=3">
+<link rel="stylesheet" href="app.css?v=4">
 </head>
 <body>
 
@@ -19,7 +19,7 @@
     <button data-action="export">Export backup</button>
     <button data-action="import">Import backup</button>
     <button data-action="gkey">Google Books API key…</button>
-    <span class="version">Version 3</span>
+    <span class="version">Version 4</span>
   </div>
 </header>
 
@@ -31,6 +31,9 @@
     <option value="author">Author</option>
   </select>
 </div>
+
+<nav id="locations" class="locations" hidden></nav>
+<datalist id="locationList"></datalist>
 
 <main id="list" class="list"></main>
 
@@ -73,7 +76,8 @@
       <label>Publisher <input name="publisher"></label>
       <label class="short">Year <input name="year" inputmode="numeric"></label>
     </div>
-    <label>Notes <textarea name="notes" rows="2" placeholder="Shelf, condition, lent to…"></textarea></label>
+    <label>Location <input name="location" list="locationList" placeholder="e.g. Living room, shelf 2" autocomplete="off"></label>
+    <label>Notes <textarea name="notes" rows="2" placeholder="Condition, lent to…"></textarea></label>
     <div class="sheet-actions">
       <button type="button" id="deleteBtn" class="btn danger" hidden>Delete</button>
       <span class="spacer"></span>
@@ -87,6 +91,6 @@
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>
