@@ -48,6 +48,7 @@ h1 { margin: 0; font-size: 26px; font-weight: 650; letter-spacing: -0.02em; }
 }
 .menu button { background: none; border: 0; text-align: left; padding: 10px 12px; border-radius: 6px; cursor: pointer; }
 .menu button:hover { background: var(--bg); }
+.version { color: var(--muted); font-size: 12px; padding: 6px 12px 4px; }
 
 /* Search + sort */
 .tools { display: flex; gap: 8px; margin-bottom: 12px; }

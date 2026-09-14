@@ -45,8 +45,16 @@ const isIsbn = (code) => /^97[89]/.test(code);
 
 /* ---------- metadata lookup ---------- */
 
+// AbortSignal.timeout is missing on older iOS Safari; without a timeout a slow API would hang forever.
+function timeout(ms = 10000) {
+  if (AbortSignal.timeout) return AbortSignal.timeout(ms);
+  const c = new AbortController();
+  setTimeout(() => c.abort(), ms);
+  return c.signal;
+}
+
 async function fetchJson(url) {
-  const r = await fetch(url, { signal: AbortSignal.timeout(10000) });
+  const r = await fetch(url, { signal: timeout() });
   if (!r.ok) throw new Error(r.status);
   return r.json();
 }
@@ -85,7 +93,7 @@ const CG_TOKEN_KEY = 'bookshelf.cgToken';
 async function chitaiGorodToken(fresh = false) {
   const cached = JSON.parse(localStorage.getItem(CG_TOKEN_KEY) || 'null');
   if (!fresh && cached && cached.exp * 1000 > Date.now() + 60000) return cached.token;
-  const r = await fetch(`${CG_API}/v1/auth/anonymous`, { method: 'POST', signal: AbortSignal.timeout(10000) });
+  const r = await fetch(`${CG_API}/v1/auth/anonymous`, { method: 'POST', signal: timeout() });
   if (!r.ok) throw new Error(r.status);
   const { token } = await r.json();
   localStorage.setItem(CG_TOKEN_KEY, JSON.stringify({ token: token.accessToken, exp: token.expAccessToken }));
@@ -95,7 +103,7 @@ async function chitaiGorodToken(fresh = false) {
 async function fromChitaiGorod(isbn) {
   const search = async (token) => fetch(`${CG_API}/v2/search/product?phrase=${isbn}`, {
     headers: { Authorization: token },
-    signal: AbortSignal.timeout(10000),
+    signal: timeout(),
   });
   let r = await search(await chitaiGorodToken());
   if (r.status === 401) r = await search(await chitaiGorodToken(true));
@@ -112,19 +120,26 @@ async function fromChitaiGorod(isbn) {
 }
 
 // Russian editions (978-5) are best covered by Chitai-gorod; others by Open Library.
+// Returns { found, report } — report lists each source's outcome so a miss can be diagnosed on the phone.
 async function lookup(isbn) {
-  const sources = isbn.startsWith('9785')
-    ? [fromChitaiGorod, fromOpenLibrary, fromGoogle]
-    : [fromOpenLibrary, fromGoogle, fromChitaiGorod];
+  const cg = ['Chitai-gorod', fromChitaiGorod], ol = ['Open Library', fromOpenLibrary], gb = ['Google Books', fromGoogle];
+  const sources = isbn.startsWith('9785') ? [cg, ol, gb] : [ol, gb, cg];
   let found = null;
-  for (const src of sources) {
-    const r = await src(isbn).catch(() => null);
+  const report = [];
+  for (const [name, src] of sources) {
+    let r = null;
+    try {
+      r = await src(isbn);
+      report.push(`${name}: ${r ? 'found' : 'no match'}`);
+    } catch (err) {
+      report.push(`${name}: error ${err.name === 'Error' ? err.message : err.name + ' ' + err.message}`);
+    }
     if (!r) continue;
     if (!found) found = r;
     else if (!found.cover && r.cover) found.cover = r.cover;
     if (found.cover) break;
   }
-  return found;
+  return { found, report };
 }
 
 /* ---------- list ---------- */
@@ -160,7 +175,7 @@ function render() {
 
 let editing = null; // { book, isNew, fromScan }
 
-function openSheet(book, { isNew = false, fromScan = false, note = '', warn = false } = {}) {
+function openSheet(book, { isNew = false, fromScan = false, note = '', warn = false, detail = '' } = {}) {
   editing = { book, isNew, fromScan };
   const f = $('bookForm');
   for (const name of ['title', 'authors', 'publisher', 'year', 'notes']) f.elements[name].value = book[name] || '';
@@ -170,6 +185,8 @@ function openSheet(book, { isNew = false, fromScan = false, note = '', warn = fa
   if (book.cover) $('fCoverImg').src = book.cover;
   $('sheetNote').textContent = note;
   $('sheetNote').className = 'note' + (warn ? ' warn' : '');
+  $('sheetDetail').textContent = detail;
+  $('sheetDetail').hidden = !detail;
   $('saveBtn').textContent = isNew ? 'Add book' : 'Save';
   $('deleteBtn').hidden = isNew;
   $('saveNextBtn').hidden = !(isNew && fromScan);
@@ -229,13 +246,14 @@ async function addByCode(raw, fromScan = false) {
   if (busy) return;
   busy = true;
   toast('Looking up…', 0);
-  const data = await lookup(isbn);
+  const { found: data, report } = await lookup(isbn);
   busy = false;
   hideToast();
   openSheet({ isbn, ...(data || {}) }, {
     isNew: true,
     fromScan,
     note: data ? '' : (isIsbn(isbn) ? 'Not found online — enter details' : 'Not an ISBN barcode — enter details'),
+    detail: data ? '' : report.join(' · '),
   });
 }
 
