@@ -155,3 +155,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
   position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 30;
   background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-size: 14px; max-width: calc(100vw - 32px);
 }
+
+/* Visitors see a read-only library; the owner (signed in) gets editing controls. */
+body:not(.owner) .owner-only, body.owner .visitor-only { display: none !important; }
+body:not(.owner) { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+input[readonly], textarea[readonly] { background: transparent; border-color: transparent; padding-left: 0; }

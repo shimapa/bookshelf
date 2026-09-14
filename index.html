@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f7f5f0">
 <title>Bookshelf</title>
-<link rel="stylesheet" href="app.css?v=9">
+<link rel="stylesheet" href="app.css?v=10">
 </head>
 <body>
 
@@ -13,13 +13,16 @@
   <div class="brand">
     <h1>Bookshelf</h1>
     <span id="count" class="count"></span>
+    <span id="syncState" class="count"></span>
   </div>
   <button id="menuBtn" class="icon-btn" aria-label="Menu">⋯</button>
   <div id="menu" class="menu" hidden>
     <button data-action="export">Export backup</button>
-    <button data-action="import">Import backup</button>
-    <button data-action="gkey">Google Books API key…</button>
-    <span class="version">Version 9</span>
+    <button data-action="import" class="owner-only">Import backup</button>
+    <button data-action="gkey" class="owner-only">Google Books API key…</button>
+    <button data-action="signin" class="visitor-only">Sign in</button>
+    <button data-action="signout" class="owner-only">Sign out</button>
+    <span class="version">Version 10</span>
   </div>
 </header>
 
@@ -40,10 +43,10 @@
 
 <div id="empty" class="empty" hidden>
   <p class="empty-title">No books yet</p>
-  <p>Tap <b>Scan</b> and point the camera at the barcode on the back cover.</p>
+  <p class="empty-hint">Tap <b>Scan</b> and point the camera at the barcode on the back cover.</p>
 </div>
 
-<div class="bar">
+<div class="bar owner-only">
   <form id="isbnForm" class="isbn-form">
     <input id="isbnInput" inputmode="numeric" placeholder="Type or scan ISBN" autocomplete="off">
     <button type="submit" class="btn">Add</button>
@@ -85,18 +88,34 @@
     <label>Location <input name="location" list="locationList" placeholder="e.g. Living room, shelf 2" autocomplete="off"></label>
     <label>Notes <textarea name="notes" rows="2" placeholder="Condition, lent to…"></textarea></label>
     <div class="sheet-actions">
-      <button type="button" id="deleteBtn" class="btn danger" hidden>Delete</button>
+      <button type="button" id="deleteBtn" class="btn danger owner-only" hidden>Delete</button>
       <span class="spacer"></span>
       <button type="button" id="cancelBtn" class="btn">Cancel</button>
-      <button type="submit" id="saveBtn" class="btn primary">Add book</button>
+      <button type="submit" id="saveBtn" class="btn primary owner-only">Add book</button>
     </div>
-    <button type="submit" id="saveNextBtn" class="btn wide" value="next">Add &amp; scan next</button>
+    <button type="submit" id="saveNextBtn" class="btn wide owner-only" value="next">Add &amp; scan next</button>
+  </form>
+</div>
+
+<!-- Sign in: only the owner can change the library -->
+<div id="signin" class="sheet-wrap" hidden>
+  <form id="signinForm" class="sheet">
+    <p class="note">Sign in to edit</p>
+    <p class="isbn-line">Paste a GitHub token that can write to <b>shimapa/bookshelf</b>. It is kept only on this device.</p>
+    <input name="username" autocomplete="username" value="shimapa" hidden>
+    <label>GitHub token <input name="token" type="password" autocomplete="current-password" required></label>
+    <p id="signinError" class="note warn" hidden></p>
+    <div class="sheet-actions">
+      <span class="spacer"></span>
+      <button type="button" id="signinCancel" class="btn">Cancel</button>
+      <button type="submit" class="btn primary">Sign in</button>
+    </div>
   </form>
 </div>
 
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=9"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>

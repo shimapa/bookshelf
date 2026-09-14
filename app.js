@@ -1,6 +1,5 @@
 'use strict';
 
-const STORE_KEY = 'bookshelf.books';
 const GKEY_KEY = 'bookshelf.googleKey';
 const LAST_LOC_KEY = 'bookshelf.lastLocation';
 const FIELDS = ['title', 'authors', 'publisher', 'year', 'location', 'notes'];
@@ -8,18 +7,218 @@ const POLYFILL = 'https://cdn.jsdelivr.net/npm/barcode-detector@3.2.2/ponyfill/+
 const collator = new Intl.Collator(['ru', 'en'], { sensitivity: 'base', numeric: true });
 
 const $ = (id) => document.getElementById(id);
-let books = load();
 let locFilter = null; // null = all, '' = books without a location, otherwise a location name
 
 /* ---------- storage ---------- */
 
-function load() {
-  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch { return []; }
+// The library is books.json on the `data` branch of the GitHub repo: anyone can read it, only the
+// owner (signed in with a GitHub token) can change it. localStorage keeps the last copy read plus
+// changes not committed yet, so the app opens instantly and edits survive being offline.
+const REPO = 'shimapa/bookshelf';
+const DATA_BRANCH = 'data';
+const DATA_FILE = 'books.json';
+const TOKEN_KEY = 'bookshelf.githubToken';
+const CACHE_KEY = 'bookshelf.cache';
+const PENDING_KEY = 'bookshelf.pending';
+const LEGACY_KEY = 'bookshelf.legacyBooks';
+
+// Before shared storage each device kept its own list under 'bookshelf.books'.
+// Keep it aside until the owner signs in on that device and it gets merged.
+if (localStorage.getItem('bookshelf.books')) {
+  if (!localStorage.getItem(LEGACY_KEY)) localStorage.setItem(LEGACY_KEY, localStorage.getItem('bookshelf.books'));
+  localStorage.removeItem('bookshelf.books');
 }
-function save() {
-  localStorage.setItem(STORE_KEY, JSON.stringify(books));
+
+let token = localStorage.getItem(TOKEN_KEY);
+let remote = readJson(CACHE_KEY, []); // last list read from GitHub
+let pending = readJson(PENDING_KEY, []); // uncommitted changes, oldest first: { put: book } | { del: id }
+let books = applyOps(remote, pending);
+
+function readJson(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
+}
+
+function applyOps(list, ops) {
+  const byId = new Map(list.map((b) => [b.id, b]));
+  for (const op of ops) op.put ? byId.set(op.put.id, op.put) : byId.delete(op.del);
+  return [...byId.values()].map((b) => ({ ...b }));
+}
+
+function persist() {
+  localStorage.setItem(CACHE_KEY, JSON.stringify(remote));
+  localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+  if (token && pending.length) setSyncState('saving…');
   render();
 }
+
+// Records changed books and schedules a commit. Background changes (covers, ratings) wait longer so they batch.
+function saveBooks(changed, { background = false } = {}) {
+  for (const b of [].concat(changed)) {
+    const i = books.findIndex((x) => x.id === b.id);
+    if (i === -1) books.push(b); else books[i] = b;
+    pending.push({ put: { ...b } });
+  }
+  persist();
+  scheduleSync(background ? 20000 : 1500);
+}
+
+function deleteBook(id) {
+  books = books.filter((b) => b.id !== id);
+  pending.push({ del: id });
+  persist();
+  scheduleSync(1500);
+}
+
+let syncAt = Infinity, syncTimer;
+function scheduleSync(ms) {
+  if (!token || Date.now() + ms >= syncAt) return;
+  syncAt = Date.now() + ms;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => { syncAt = Infinity; sync(); }, ms);
+}
+
+let syncing = false, syncAgain = false;
+// Reads the shared list and, when signed in, commits pending changes on top of it (retrying if another device wrote first).
+async function sync() {
+  if (syncing) { syncAgain = true; return; }
+  syncing = true;
+  try {
+    for (let attempt = 1; ; attempt++) {
+      const { list, sha } = await readRemote();
+      const ops = pending.slice();
+      if (token && ops.length) {
+        const next = applyOps(list, ops);
+        try {
+          await writeRemote(next, sha, ops.length);
+        } catch (err) {
+          if ((err.status === 409 || err.status === 422) && attempt < 3) continue; // file changed meanwhile
+          throw err;
+        }
+        pending = pending.slice(ops.length);
+        remote = next;
+      } else {
+        remote = list;
+      }
+      break;
+    }
+    books = applyOps(remote, pending);
+    setSyncState('');
+    persist();
+  } catch (err) {
+    setSyncState(!token ? 'offline' : err.status === 401 ? 'sign-in expired' : err.status === 403 || err.status === 404 ? 'token can’t write' : 'not saved yet');
+  } finally {
+    syncing = false;
+    if (syncAgain) { syncAgain = false; sync(); }
+  }
+}
+
+async function readRemote() {
+  if (token) {
+    const file = await github(`contents/${DATA_FILE}?ref=${DATA_BRANCH}`);
+    // Files over 1 MB come without inline content.
+    const text = file.content ? decodeBase64(file.content) : await github(`contents/${DATA_FILE}?ref=${DATA_BRANCH}`, { raw: true });
+    return { list: JSON.parse(text), sha: file.sha };
+  }
+  const r = await fetch(`https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${DATA_FILE}`, { cache: 'no-store', signal: timeout() });
+  if (!r.ok) throw Object.assign(new Error(r.status), { status: r.status });
+  return { list: await r.json(), sha: null };
+}
+
+function writeRemote(list, sha, changes) {
+  const sorted = [...list].sort((a, b) => (a.added || 0) - (b.added || 0));
+  const text = sorted.length ? `[\n${sorted.map((b) => JSON.stringify(b)).join(',\n')}\n]\n` : '[]\n'; // one book per line: readable diffs
+  return github(`contents/${DATA_FILE}`, {
+    method: 'PUT',
+    body: { message: `Update books (${changes} ${changes === 1 ? 'change' : 'changes'})`, content: encodeBase64(text), sha, branch: DATA_BRANCH },
+  });
+}
+
+async function github(path, { method = 'GET', body, raw = false } = {}) {
+  const r = await fetch(`https://api.github.com/repos/${REPO}${path ? '/' + path : ''}`, {
+    method,
+    cache: 'no-store',
+    signal: timeout(20000),
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: raw ? 'application/vnd.github.raw+json' : 'application/vnd.github+json',
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+    },
+    body: body && JSON.stringify(body),
+  });
+  if (!r.ok) throw Object.assign(new Error(`GitHub ${r.status}`), { status: r.status });
+  return raw ? r.text() : r.json();
+}
+
+function encodeBase64(text) {
+  const bytes = new TextEncoder().encode(text);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+function decodeBase64(b64) {
+  return new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\s/g, '')), (c) => c.charCodeAt(0)));
+}
+
+function setSyncState(text) {
+  $('syncState').textContent = text ? `· ${text}` : '';
+}
+
+/* ---------- sign in ---------- */
+
+function updateRole() {
+  document.body.classList.toggle('owner', !!token);
+  $('empty').querySelector('.empty-hint').hidden = !token;
+}
+
+async function signIn(value) {
+  token = value.trim();
+  try {
+    const repo = await github('');
+    if (!repo.permissions?.push) throw Object.assign(new Error('no push'), { status: 403 });
+  } catch (err) {
+    token = null;
+    throw err;
+  }
+  localStorage.setItem(TOKEN_KEY, token);
+  updateRole();
+  await sync();
+  // Books this device kept before shared storage: add the ones the library doesn't have yet.
+  const legacy = readJson(LEGACY_KEY, []);
+  const fresh = legacy.filter((b) => b && b.id && b.title && !books.some((x) => x.id === b.id));
+  if (fresh.length) saveBooks(fresh);
+  localStorage.removeItem(LEGACY_KEY);
+  backfill();
+  updateRatings();
+  return fresh.length;
+}
+
+function signOut() {
+  token = null;
+  localStorage.removeItem(TOKEN_KEY);
+  setSyncState('');
+  updateRole();
+  render();
+}
+
+$('signinForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = e.submitter;
+  btn.disabled = true;
+  $('signinError').hidden = true;
+  try {
+    const moved = await signIn(e.target.elements.token.value);
+    $('signin').hidden = true;
+    e.target.reset();
+    toast(moved ? `Signed in · ${moved} ${moved === 1 ? 'book' : 'books'} from this device added` : 'Signed in', 3000);
+  } catch (err) {
+    $('signinError').textContent = err.status === 401 ? 'Token not accepted' : err.status === 403 || err.status === 404
+      ? `This token can’t write to ${REPO}` : 'Could not reach GitHub';
+    $('signinError').hidden = false;
+  } finally {
+    btn.disabled = false;
+  }
+});
+$('signinCancel').addEventListener('click', () => { $('signin').hidden = true; });
 
 /* ---------- ISBN helpers ---------- */
 
@@ -284,6 +483,8 @@ function openSheet(book, { isNew = false, fromScan = false, note = '', warn = fa
     $('grLink').href = book.goodreadsUrl;
     $('grLink').textContent = `Goodreads ★ ${book.rating.toFixed(2)} · ${book.ratingsCount.toLocaleString('ru-RU')} ratings`;
   }
+  for (const el of f.elements) if (el.name) el.readOnly = !token; // visitors get a read-only view
+  $('cancelBtn').textContent = token ? 'Cancel' : 'Close';
   $('saveBtn').textContent = isNew ? 'Add book' : 'Save';
   $('deleteBtn').hidden = isNew;
   $('saveNextBtn').hidden = !(isNew && fromScan);
@@ -298,8 +499,11 @@ function closeSheet() {
 
 $('bookForm').addEventListener('submit', (e) => {
   e.preventDefault();
+  if (!token) return closeSheet(); // read-only view (Enter in a field still submits the form)
   const f = e.target;
-  const { book, isNew } = editing;
+  const { isNew } = editing;
+  // The list may have been refreshed while the sheet was open: edit the current copy of the book.
+  const book = isNew ? editing.book : books.find((b) => b.id === editing.book.id) || editing.book;
   for (const name of FIELDS) book[name] = f.elements[name].value.trim().replace(/\s+/g, ' ');
   // Reuse an existing location's spelling when only the case differs ("гостиная" → "Гостиная").
   const same = locations().find(([name]) => name.toLowerCase() === book.location.toLowerCase());
@@ -308,10 +512,9 @@ $('bookForm').addEventListener('submit', (e) => {
   if (isNew) {
     book.id = book.isbn || (crypto.randomUUID?.() || String(Date.now()));
     book.added = Date.now();
-    books.push(book);
   }
   const next = e.submitter?.value === 'next';
-  save();
+  saveBooks(book);
   closeSheet();
   toast(isNew ? 'Added' : 'Saved');
   if (next) startScanner();
@@ -323,8 +526,7 @@ $('cancelBtn').addEventListener('click', closeSheet);
 $('sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet') closeSheet(); });
 $('deleteBtn').addEventListener('click', () => {
   if (!confirm(`Delete “${editing.book.title}”?`)) return;
-  books = books.filter((b) => b !== editing.book);
-  save();
+  deleteBook(editing.book.id);
   closeSheet();
 });
 // A cover URL that stops working falls back to the placeholder.
@@ -577,6 +779,8 @@ $('menu').addEventListener('click', (e) => {
   const action = e.target.dataset.action;
   if (action === 'export') exportBooks();
   if (action === 'import') $('importFile').click();
+  if (action === 'signin') { $('signin').hidden = false; $('signinForm').elements.token.focus(); }
+  if (action === 'signout') signOut();
   if (action === 'gkey') {
     const v = prompt('Google Books API key (optional, improves lookups when the free quota runs out). Leave empty to remove.', localStorage.getItem(GKEY_KEY) || '');
     if (v === null) return;
@@ -603,8 +807,7 @@ $('importFile').addEventListener('change', async (e) => {
     if (!Array.isArray(incoming)) throw new Error();
     const ids = new Set(books.map((b) => b.id));
     const fresh = incoming.filter((b) => b && b.id && b.title && !ids.has(b.id));
-    books.push(...fresh);
-    save();
+    saveBooks(fresh);
     toast(`Imported ${fresh.length} ${fresh.length === 1 ? 'book' : 'books'}`);
   } catch {
     toast('Not a valid backup file');
@@ -644,11 +847,15 @@ const BACKFILL = 1;
 const DAY = 86400000;
 let ratingsRunning = false;
 
+updateRole();
 render();
-backfill();
-updateRatings();
+sync();
+if (token) { backfill(); updateRatings(); }
+else if (readJson(LEGACY_KEY, []).length) toast('Books saved on this device will move to the library when you sign in (⋯ → Sign in)', 6000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') sync(); });
+
 async function updateRatings() {
-  if (ratingsRunning) return;
+  if (!token || ratingsRunning) return;
   ratingsRunning = true;
   try {
     const due = (b) => b.isbn && Date.now() - (b.ratingChecked || 0) > (b.goodreadsUrl ? 90 : 30) * DAY;
@@ -660,10 +867,11 @@ async function updateRatings() {
       } catch {
         return; // proxy or network down: try again next time the app opens
       }
-      if (books.includes(b)) {
-        if (gr) Object.assign(b, gr);
-        b.ratingChecked = Date.now();
-        save();
+      const cur = books.find((x) => x.id === b.id); // list may have been refreshed meanwhile
+      if (cur) {
+        if (gr) Object.assign(cur, gr);
+        cur.ratingChecked = Date.now();
+        saveBooks(cur, { background: true });
       }
       await sleep(1000);
     }
@@ -673,13 +881,15 @@ async function updateRatings() {
 }
 
 async function backfill() {
+  if (!token) return;
   for (const b of books.filter((b) => b.isbn && (!b.cover || !b.authors) && (b.backfill || 0) < BACKFILL)) {
     const { found } = await lookup(b.isbn).catch(() => ({}));
     const cover = b.cover || found?.cover || await findCover(b.isbn);
-    if (!books.includes(b)) continue; // deleted meanwhile
-    if (found) for (const k of ['authors', 'publisher', 'year']) if (!b[k] && found[k]) b[k] = found[k];
-    if (!b.cover && cover) b.cover = cover;
-    b.backfill = BACKFILL;
-    save();
+    const cur = books.find((x) => x.id === b.id); // deleted or refreshed meanwhile
+    if (!cur) continue;
+    if (found) for (const k of ['authors', 'publisher', 'year']) if (!cur[k] && found[k]) cur[k] = found[k];
+    if (!cur.cover && cover) cur.cover = cover;
+    cur.backfill = BACKFILL;
+    saveBooks(cur, { background: true });
   }
 }
