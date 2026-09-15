@@ -2,9 +2,11 @@
 
 const GKEY_KEY = 'bookshelf.googleKey';
 const LAST_LOC_KEY = 'bookshelf.lastLocation';
-const FIELDS = ['title', 'authors', 'series', 'publisher', 'year', 'pages', 'category', 'location', 'readBy', 'notes', 'description'];
-// Who has read a book: stored as a comma-separated list of these keys ("pasha,alina").
+const FIELDS = ['title', 'authors', 'series', 'publisher', 'year', 'pages', 'category', 'location', 'readBy', 'ratingPasha', 'ratingAlina', 'notes', 'description'];
+// Who has read a book: stored as a comma-separated list of these keys ("pasha,alina"); each reader's own 1–5 stars in its field.
 const READERS = { pasha: 'Паша', alina: 'Алина' };
+const RATING_FIELD = { pasha: 'ratingPasha', alina: 'ratingAlina' };
+const hasRead = (b, key) => (b.readBy || '').split(',').includes(key);
 const POLYFILL = 'https://cdn.jsdelivr.net/npm/barcode-detector@3.2.2/ponyfill/+esm';
 const collator = new Intl.Collator(['ru', 'en'], { sensitivity: 'base', numeric: true });
 
@@ -19,6 +21,7 @@ function plural(n, [one, few, many]) {
 }
 const BOOK_FORMS = ['книга', 'книги', 'книг'];
 let locFilter = null; // null = all, '' = books without a location, otherwise a location name
+let readFilter = null; // null = all, 'pasha' / 'alina' = read by that person, 'none' = read by nobody
 let catFilter = null; // null = all, otherwise a CATEGORIES key
 
 const CATEGORIES = { fiction: 'Художественная', nonfiction: 'Нон-фикшн', kids: 'Детские' };
@@ -643,6 +646,19 @@ function locations() {
 }
 
 const inCategory = (b) => catFilter === null || (b.category || '') === catFilter;
+const inReadFilter = (b) => readFilter === null || (readFilter === 'none' ? !(b.readBy || '') : hasRead(b, readFilter));
+
+// Who-has-read filter: one chip per reader and one for books nobody has read yet; tapping the chosen one clears it.
+function renderReaderFilter() {
+  const pool = books.filter((b) => inCategory(b) && (locFilter === null || (b.location || '') === locFilter));
+  const chip = (value, label, n) => `<button class="chip reader-filter${readFilter === value ? ' on' : ''}" data-read="${value}">${label} <span>${n}</span></button>`;
+  $('readers').hidden = books.length === 0;
+  $('readers').innerHTML = [
+    chip('pasha', 'Прочитал Паша', pool.filter((b) => hasRead(b, 'pasha')).length),
+    chip('alina', 'Прочитала Алина', pool.filter((b) => hasRead(b, 'alina')).length),
+    chip('none', 'Никто не читал', pool.filter((b) => !(b.readBy || '')).length),
+  ].join('');
+}
 
 function renderCategories() {
   const counts = { fiction: 0, nonfiction: 0, kids: 0, '': 0 };
@@ -678,10 +694,11 @@ function render() {
   renderHero();
   renderCategories();
   renderLocations();
+  renderReaderFilter();
   const q = $('search').value.trim().toLowerCase();
   const sort = $('sort').value;
   let shown = books.filter((b) => inCategory(b) &&
-    (locFilter === null || (b.location || '') === locFilter) &&
+    (locFilter === null || (b.location || '') === locFilter) && inReadFilter(b) &&
     (!q || [b.title, b.authors, b.series, b.isbn, b.publisher, b.location, b.notes].some((f) => (f || '').toLowerCase().includes(q))));
 
   if (sort === 'publisher') {
@@ -1122,6 +1139,11 @@ $('bookForm').addEventListener('submit', (e) => {
     book.id = book.isbn || (crypto.randomUUID?.() || String(Date.now()));
     book.added = Date.now();
   }
+  // A book typed in by hand may already be on the shelf under the same title and author, or the same ISBN.
+  if (isNew) {
+    const twin = books.find((x) => (book.isbn && x.isbn === book.isbn) || (book.title && bookKey(x) === bookKey(book)));
+    if (twin && !confirm(`«${twin.title}» уже есть в библиотеке${twin.location ? ` (${twin.location})` : ''}. Всё равно добавить ещё один экземпляр?`)) return;
+  }
   const next = e.submitter?.value === 'next';
   saveBooks(book);
   closeSheet();
@@ -1404,26 +1426,40 @@ function renderCatTags() {
     (!token && !current ? '<span class="tags-empty">не указана</span>' : '');
 }
 
-// Readers: each person is a toggle with a check mark; visitors only see who has read the book.
+// Readers: each person has a read toggle with a check mark and their own five stars.
+// A star also marks the book as read; un-marking clears the stars. Visitors only see who has read it and how they rated it.
 const CHECK = '<svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><path d="M2.5 6.8l2.7 2.7 5.3-6" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const STAR_LARGE = '<svg width="22" height="22" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 .8l1.55 3.2 3.5.45-2.6 2.4.7 3.5L6 8.6 2.85 10.35l.7-3.5-2.6-2.4 3.5-.45z"/></svg>';
 const readersOf = (value = '') => value.split(',').filter((k) => k in READERS);
 function renderReadTags() {
-  const current = readersOf($('bookForm').elements.readBy.value);
+  const f = $('bookForm').elements;
+  const current = readersOf(f.readBy.value);
   const shown = Object.entries(READERS).filter(([key]) => token || current.includes(key));
   $('readTags').innerHTML = shown.map(([key, name]) => {
     const on = current.includes(key);
-    return `<button type="button" class="chip read-chip${on ? ' on' : ''}" aria-pressed="${on}" data-reader="${key}">${CHECK}${name}</button>`;
+    const stars = +f[RATING_FIELD[key]].value || 0;
+    const starBtns = [1, 2, 3, 4, 5].map((n) => `<button type="button" class="star${n <= stars ? ' on' : ''}" data-reader="${key}" data-stars="${n}" aria-label="${name}: ${n} из 5"${token ? '' : ' disabled'}>${STAR_LARGE}</button>`).join('');
+    return `<div class="reader-row"><button type="button" class="chip read-chip${on ? ' on' : ''}" aria-pressed="${on}" data-reader="${key}">${CHECK}${name}</button>` +
+      (token || stars ? `<span class="stars" role="group" aria-label="Оценка: ${name}">${starBtns}</span>` : '') + '</div>';
   }).join('') + (!token && !current.length ? '<span class="tags-empty">пока никто</span>' : '');
 }
 
 $('readTags').addEventListener('click', (e) => {
-  const chip = e.target.closest('button');
-  if (!chip || !token) return;
-  const field = $('bookForm').elements.readBy;
-  const current = readersOf(field.value);
-  const key = chip.dataset.reader;
-  const next = current.includes(key) ? current.filter((k) => k !== key) : [...current, key];
-  field.value = Object.keys(READERS).filter((k) => next.includes(k)).join(',');
+  const btn = e.target.closest('button');
+  if (!btn || !token) return;
+  const f = $('bookForm').elements;
+  const key = btn.dataset.reader;
+  let current = readersOf(f.readBy.value);
+  const rating = f[RATING_FIELD[key]];
+  if (btn.dataset.stars) {
+    const n = btn.dataset.stars;
+    rating.value = rating.value === n ? '' : n; // the same star again takes the rating back
+    if (!current.includes(key)) current.push(key);
+  } else if (current.includes(key)) {
+    current = current.filter((k) => k !== key);
+    rating.value = '';
+  } else current.push(key);
+  f.readBy.value = Object.keys(READERS).filter((k) => current.includes(k)).join(',');
   renderReadTags();
 });
 
@@ -1470,7 +1506,8 @@ async function addByCode(raw, fromScan = false) {
 
   const existing = books.find((b) => b.isbn === isbn);
   if (existing) {
-    openSheet(existing, { note: 'Уже есть в библиотеке', warn: true, fromScan });
+    navigator.vibrate?.([60, 60, 60]);
+    openSheet(existing, { note: duplicateNote(existing), warn: true, fromScan });
     return;
   }
   if (busy) return;
@@ -1622,6 +1659,9 @@ async function searchByTitle(q) {
   }).join('');
 }
 
+// Where the copy you already have stands, so it can be found (or the new one left in the shop).
+const duplicateNote = (b) => `Уже есть в библиотеке${b.location ? ` — стоит: ${b.location}` : ''}`;
+
 function findInLibrary(b) {
   return books.find((x) => (b.isbn && x.isbn === b.isbn) || bookKey(x) === bookKey(b));
 }
@@ -1651,7 +1691,7 @@ $('resultsList').addEventListener('click', async (e) => {
 
   $('results').hidden = true;
   const existing = findInLibrary(picked);
-  if (existing) openSheet(existing, { note: 'Уже есть в библиотеке', warn: true });
+  if (existing) openSheet(existing, { note: duplicateNote(existing), warn: true });
   else openSheet(picked, { isNew: true });
 });
 
@@ -1858,6 +1898,197 @@ $('scanModes').addEventListener('click', (e) => {
   if (mode && mode !== scanMode) setScanMode(mode);
 });
 
+
+/* ---------- what to read ---------- */
+
+// A random book the chosen person hasn't read (or nobody has, for "anyone"), optionally of one category.
+const PICK_KEY = 'bookshelf.pick';
+const pickPrefs = { who: 'any', cat: '', ...readJson(PICK_KEY, {}) };
+let pickCurrent = null;
+
+function pickPool() {
+  return books.filter((b) => (pickPrefs.who === 'any' ? !(b.readBy || '') : !hasRead(b, pickPrefs.who)) &&
+    (!pickPrefs.cat || (b.category || '') === pickPrefs.cat));
+}
+
+function renderPick(reroll = true) {
+  const seg = (group, value, label) => `<button type="button" class="seg${pickPrefs[group] === value ? ' on' : ''}" data-${group}="${value}">${label}</button>`;
+  $('pickWho').innerHTML = seg('who', 'any', 'Кому угодно') + Object.entries(READERS).map(([k, n]) => seg('who', k, n)).join('');
+  $('pickCat').innerHTML = seg('cat', '', 'Любая') + Object.entries(CATEGORIES).map(([k, n]) => seg('cat', k, n)).join('');
+  const pool = pickPool();
+  if (reroll || !pool.includes(pickCurrent)) {
+    const others = pool.length > 1 ? pool.filter((b) => b !== pickCurrent) : pool;
+    pickCurrent = others[Math.floor(Math.random() * others.length)] || null;
+  }
+  const b = pickCurrent;
+  $('pickAgain').disabled = pool.length < 2;
+  $('pickOpen').hidden = !b;
+  if (!b) {
+    $('pickCard').innerHTML = `<p class="pick-empty">${pickPrefs.who === 'any' ? 'Все книги уже кто-то прочитал' : `${READERS[pickPrefs.who]} прочитал${pickPrefs.who === 'alina' ? 'а' : ''} всё`} — пора за новыми!</p>`;
+    return;
+  }
+  $('pickCard').innerHTML = `
+    <span class="cover pick-cover">${coverInner(b, false)}${ratingBadge(b)}</span>
+    <div class="pick-text">
+      <p class="pick-title">${esc(b.title)}</p>
+      <p class="pick-author">${esc([b.authors, b.year].filter(Boolean).join(', '))}</p>
+      ${b.description ? `<p class="pick-desc">${esc(b.description)}</p>` : ''}
+      <p class="pick-meta">${b.pages ? `<span>${b.pages} ${plural(+b.pages, ['страница', 'страницы', 'страниц'])}</span>` : ''}${b.location ? `<span class="loc-tag" data-color="${locColor(b.location)}">${esc(b.location)}</span>` : ''}</p>
+      <p class="pick-left">Ещё ${pool.length - 1} ${plural(pool.length - 1, ['книга', 'книги', 'книг'])} на выбор</p>
+    </div>`;
+  settleCovers($('pickCard'));
+  $('pickCard').classList.remove('deal');
+  void $('pickCard').offsetWidth; // restart the little deal-in animation
+  $('pickCard').classList.add('deal');
+}
+
+function openPick() { renderPick(); $('pickSheet').hidden = false; }
+$('pickSheet').addEventListener('click', (e) => {
+  if (e.target.id === 'pickSheet' || e.target.closest('#pickClose')) { $('pickSheet').hidden = true; return; }
+  const seg = e.target.closest('.seg');
+  if (seg) {
+    if (seg.dataset.who !== undefined) pickPrefs.who = seg.dataset.who;
+    if (seg.dataset.cat !== undefined) pickPrefs.cat = seg.dataset.cat;
+    try { localStorage.setItem(PICK_KEY, JSON.stringify(pickPrefs)); } catch { /* storage unavailable */ }
+    renderPick();
+    return;
+  }
+  if (e.target.closest('#pickAgain')) renderPick();
+  if (e.target.closest('#pickOpen') || e.target.closest('.pick-cover')) { $('pickSheet').hidden = true; openSheet(pickCurrent); }
+});
+
+/* ---------- statistics ---------- */
+
+function bars(rows, { color = () => '', onClick = null } = {}) {
+  const max = Math.max(1, ...rows.map((r) => r.value));
+  return `<div class="bars">${rows.map((r) => `
+    <${onClick ? `button type="button" data-${onClick}="${esc(r.key ?? r.label)}"` : 'div'} class="bar-row"${color(r)}>
+      <span class="bar-label">${esc(r.label)}</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${(r.value / max * 100).toFixed(1)}%"></span></span>
+      <span class="bar-value">${r.value}${r.suffix || ''}</span>
+    </${onClick ? 'button' : 'div'}>`).join('')}</div>`;
+}
+
+function renderStats() {
+  const n = books.length;
+  const num = (v) => v.toLocaleString('ru-RU');
+  const pagesOf = (list) => list.reduce((sum, b) => sum + (parseInt(b.pages, 10) || 0), 0);
+  const authors = new Set(books.flatMap((b) => (b.authors || '').split(',').map((a) => a.trim()).filter(Boolean)));
+  const readBy = (k) => books.filter((b) => hasRead(b, k));
+  const both = books.filter((b) => hasRead(b, 'pasha') && hasRead(b, 'alina'));
+  const nobody = books.filter((b) => !(b.readBy || ''));
+  const avg = (vals) => vals.length ? (vals.reduce((a, v) => a + v, 0) / vals.length) : 0;
+  const count = (key) => { const m = new Map(); for (const b of books) { const k = key(b); if (k) m.set(k, (m.get(k) || 0) + 1); } return [...m].sort((a, b) => b[1] - a[1]); };
+
+  const tiles = [
+    [num(n), plural(n, BOOK_FORMS)],
+    [num(pagesOf(books)), 'страниц на полках'],
+    [num(authors.size), plural(authors.size, ['автор', 'автора', 'авторов'])],
+    [num(locations().length), plural(locations().length, ['комната', 'комнаты', 'комнат'])],
+  ];
+
+  const readerCards = Object.entries(READERS).map(([k, name]) => {
+    const list = readBy(k);
+    const stars = books.map((b) => +b[RATING_FIELD[k]]).filter(Boolean);
+    return `<div class="reader-stat">
+      <p class="reader-name">${name}</p>
+      <p class="reader-big">${list.length}<span> из ${n}</span></p>
+      <span class="progress"><span style="width:${n ? (list.length / n * 100).toFixed(1) : 0}%"></span></span>
+      <p class="reader-sub">${num(pagesOf(list))} страниц${stars.length ? ` · средняя оценка ${avg(stars).toFixed(1)}★` : ''}</p>
+    </div>`;
+  }).join('');
+
+  const byPages = books.filter((b) => +b.pages).sort((a, b) => b.pages - a.pages);
+  const byYear = books.filter((b) => +b.year > 1000).sort((a, b) => a.year - b.year);
+  const byGoodreads = books.filter((b) => b.rating && b.ratingsCount >= 50).sort((a, b) => b.rating - a.rating);
+  const family = (b) => avg(Object.values(RATING_FIELD).map((f) => +b[f]).filter(Boolean));
+  const byFamily = books.filter(family).sort((a, b) => family(b) - family(a));
+  const record = (label, b, value) => b ? `<button type="button" class="record" data-id="${esc(b.id)}"><span class="cover">${coverInner(b, false)}</span><span><small>${label}</small><b>${esc(b.title)}</b><em>${value}</em></span></button>` : '';
+
+  const decades = count((b) => +b.year > 1000 ? `${Math.floor(b.year / 10) * 10}-е` : '').sort((a, b) => a[0].localeCompare(b[0]));
+
+  $('statsBody').innerHTML = `
+    <div class="stat-tiles">${tiles.map(([v, l]) => `<div class="stat-tile"><b>${v}</b><span>${l}</span></div>`).join('')}</div>
+
+    <h3 class="stats-h">Прочитали</h3>
+    <div class="reader-stats">${readerCards}</div>
+    <p class="stats-note">Оба прочитали ${both.length} ${plural(both.length, BOOK_FORMS)} · никто пока не открывал ${nobody.length}</p>
+
+    <h3 class="stats-h">Категории</h3>
+    ${bars([...Object.entries(CATEGORIES).map(([k, l]) => ({ label: l, key: k, value: books.filter((b) => b.category === k).length })), { label: 'Без категории', key: '', value: books.filter((b) => !b.category).length }].filter((r) => r.value))}
+
+    <h3 class="stats-h">Комнаты</h3>
+    ${bars(count((b) => b.location).map(([l, v]) => ({ label: l, value: v })), { color: (r) => ` data-color="${locColor(r.label)}"` })}
+
+    <h3 class="stats-h">Издательства</h3>
+    ${bars(count((b) => publisherName(b.publisher)).slice(0, 6).map(([l, v]) => ({ label: l, value: v })))}
+
+    ${decades.length ? `<h3 class="stats-h">Годы издания</h3>${bars(decades.map(([l, v]) => ({ label: l, value: v })))}` : ''}
+
+    <h3 class="stats-h">Рекорды</h3>
+    <div class="records">
+      ${record('Самая толстая', byPages[0], byPages[0] && `${byPages[0].pages} страниц`)}
+      ${record('Самая тонкая', byPages.at(-1), byPages.at(-1) && `${byPages.at(-1).pages} страниц`)}
+      ${record('Самое старое издание', byYear[0], byYear[0]?.year)}
+      ${record('Лучшая по Goodreads', byGoodreads[0], byGoodreads[0] && `★ ${byGoodreads[0].rating.toFixed(2)}`)}
+      ${record('Любимая в семье', byFamily[0], byFamily[0] && `★ ${family(byFamily[0]).toFixed(1)}`)}
+    </div>`;
+  settleCovers($('statsBody'));
+}
+
+function openStats() { renderStats(); $('statsSheet').hidden = false; $('statsBody').scrollTop = 0; }
+$('statsSheet').addEventListener('click', (e) => {
+  if (e.target.id === 'statsSheet' || e.target.closest('#statsClose')) { $('statsSheet').hidden = true; return; }
+  const rec = e.target.closest('.record');
+  if (rec) { $('statsSheet').hidden = true; openSheet(books.find((b) => b.id === rec.dataset.id)); }
+});
+
+/* ---------- map of the shelves ---------- */
+
+// A floor plan of the flat: each room a tile sized by its books, with its books as tiny spines on little shelves.
+// Tapping a room shows only its books on the page.
+function renderMap() {
+  const rooms = locations();
+  const unplaced = books.filter((b) => !b.location);
+  const list = [...rooms.map(([name, n]) => ({ name, n, books: books.filter((b) => b.location === name) })).sort((a, b) => b.n - a.n),
+    ...(unplaced.length ? [{ name: '', n: unplaced.length, books: unplaced }] : [])];
+  const total = Math.max(1, books.length);
+  $('mapPlan').innerHTML = list.map((room, i) => {
+    // The biggest room takes the whole width; rooms holding more books get taller tiles.
+    const wide = (i === 0 && room.n / total > 0.35) || (i === list.length - 1 && (list.length - (list[0].n / total > 0.35 ? 1 : 0)) % 2 === 1);
+    const spines = room.books.map((b) => {
+      const [h, sat, l] = spineColors.get(b.cover) || clothHsl(b);
+      const hash = hashOf(b.id + b.title);
+      const w = +b.pages ? Math.max(3, Math.min(9, Math.round(2 + b.pages / 140))) : 3 + hash % 3;
+      const height = b.category === 'kids' ? 17 + (hash >> 4) % 6 : 22 + (hash >> 4) % 8;
+      return `<i style="--spine:hsl(${h.toFixed(0)} ${(sat * 100).toFixed(0)}% ${(l * 100).toFixed(0)}%);--h:${height}px;width:${w}px"></i>`;
+    }).join('');
+    return `<button type="button" class="room${wide ? ' wide' : ''}"${room.name ? ` data-color="${locColor(room.name)}"` : ''} data-room="${esc(room.name)}">
+      <span class="room-head"><b>${esc(room.name || 'Без места')}</b><span>${room.n} ${plural(room.n, BOOK_FORMS)}</span></span>
+      <span class="room-shelves">${spines}</span>
+    </button>`;
+  }).join('');
+}
+
+function openMap() { renderMap(); $('mapSheet').hidden = false; }
+$('mapSheet').addEventListener('click', (e) => {
+  if (e.target.id === 'mapSheet' || e.target.closest('#mapClose')) { $('mapSheet').hidden = true; return; }
+  const room = e.target.closest('.room');
+  if (!room) return;
+  $('mapSheet').hidden = true;
+  locFilter = room.dataset.room;
+  catFilter = null;
+  readFilter = null;
+  render();
+  $('categories').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+$('quick').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  ({ pick: openPick, stats: openStats, map: openMap })[btn.dataset.open]?.();
+});
+
 /* ---------- menu: backup + settings ---------- */
 
 $('menuBtn').addEventListener('click', (e) => { e.stopPropagation(); $('menu').hidden = !$('menu').hidden; });
@@ -1922,6 +2153,12 @@ $('categories').addEventListener('click', (e) => {
   catFilter = seg.dataset.cat === '*' ? null : seg.dataset.cat;
   render();
 });
+$('readers').addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  readFilter = readFilter === chip.dataset.read ? null : chip.dataset.read;
+  render();
+});
 $('locations').addEventListener('click', (e) => {
   const chip = e.target.closest('.chip');
   if (!chip) return;
@@ -1944,6 +2181,9 @@ document.addEventListener('keydown', (e) => {
   else if (!$('results').hidden) { $('results').hidden = true; searchRun++; }
   else if (!$('sheet').hidden) closeSheet();
   else if (!$('addSheet').hidden) closeAddSheet();
+  else if (!$('pickSheet').hidden) $('pickSheet').hidden = true;
+  else if (!$('statsSheet').hidden) $('statsSheet').hidden = true;
+  else if (!$('mapSheet').hidden) $('mapSheet').hidden = true;
   else if (fan) closeFan();
 });
 

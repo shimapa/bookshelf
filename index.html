@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pacifico&family=Prata&display=swap">
-<link rel="stylesheet" href="app.css?v=43">
+<link rel="stylesheet" href="app.css?v=44">
 </head>
 <body>
 
@@ -32,13 +32,19 @@
     <button data-action="gkey" class="owner-only">Ключ Google Books API…</button>
     <button data-action="signin" class="visitor-only">Войти</button>
     <button data-action="signout" class="owner-only">Выйти</button>
-    <span class="version">Версия 43</span>
+    <span class="version">Версия 44</span>
   </div>
 </header>
 
 <section id="hero" class="hero" aria-label="Все книги корешками" hidden>
   <div id="heroShelf" class="hero-shelf"><div id="heroTrack" class="hero-track"></div></div>
 </section>
+
+<nav id="quick" class="quick" aria-label="Разделы">
+  <button type="button" data-open="pick"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="2.5" y="2.5" width="13" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="6.2" cy="6.2" r="1.2" fill="currentColor"/><circle cx="11.8" cy="11.8" r="1.2" fill="currentColor"/><circle cx="9" cy="9" r="1.2" fill="currentColor"/></svg>Что почитать?</button>
+  <button type="button" data-open="stats"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 15V9M7 15V4M11 15v-4M15 15V6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Статистика</button>
+  <button type="button" data-open="map"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2.5 3.5h13v11h-13zM9 3.5v5.5M2.5 9h4M11.5 9h4M9 12v2.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Карта полок</button>
+</nav>
 
 <div class="tools">
   <input id="search" type="search" placeholder="Поиск книг" autocomplete="off">
@@ -53,6 +59,7 @@
 
 <nav id="categories" class="segments" hidden></nav>
 <nav id="locations" class="locations" hidden></nav>
+<nav id="readers" class="locations readers" hidden></nav>
 
 <main id="list" class="library"></main>
 <datalist id="seriesList"></datalist>
@@ -137,6 +144,8 @@
       <span class="field-label">Прочитали</span>
       <div id="readTags" class="tags"></div>
       <input name="readBy" type="hidden">
+      <input name="ratingPasha" type="hidden">
+      <input name="ratingAlina" type="hidden">
     </div>
     <label>Заметки <textarea name="notes" rows="2" placeholder="Состояние, кому дал почитать…"></textarea></label>
     <div class="sheet-actions">
@@ -206,9 +215,44 @@
   <button type="button" class="lightbox-close" aria-label="Закрыть"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M5 5l12 12M17 5L5 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
 </div>
 
+<!-- What to read -->
+<div id="pickSheet" class="sheet-wrap" hidden>
+  <div class="sheet pick-sheet">
+    <h2 class="add-title">Что почитать?</h2>
+    <nav id="pickWho" class="segments pick-segs" aria-label="Для кого"></nav>
+    <nav id="pickCat" class="segments pick-segs" aria-label="Категория"></nav>
+    <div id="pickCard" class="pick-card" aria-live="polite"></div>
+    <div class="sheet-actions">
+      <button type="button" id="pickClose" class="btn">Закрыть</button>
+      <span class="spacer"></span>
+      <button type="button" id="pickAgain" class="btn">Другую</button>
+      <button type="button" id="pickOpen" class="btn primary">Открыть</button>
+    </div>
+  </div>
+</div>
+
+<!-- Statistics -->
+<div id="statsSheet" class="sheet-wrap" hidden>
+  <div class="sheet stats-sheet">
+    <h2 class="add-title">Наша библиотека</h2>
+    <div id="statsBody" class="stats-body"></div>
+    <div class="sheet-actions"><span class="spacer"></span><button type="button" id="statsClose" class="btn">Закрыть</button></div>
+  </div>
+</div>
+
+<!-- Map of the shelves -->
+<div id="mapSheet" class="sheet-wrap" hidden>
+  <div class="sheet map-sheet">
+    <h2 class="add-title">Карта полок</h2>
+    <p class="map-hint">Нажмите на комнату, чтобы увидеть её книги</p>
+    <div id="mapPlan" class="map-plan"></div>
+    <div class="sheet-actions"><span class="spacer"></span><button type="button" id="mapClose" class="btn">Закрыть</button></div>
+  </div>
+</div>
+
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=43"></script>
+<script src="app.js?v=44"></script>
 </body>
 </html>
