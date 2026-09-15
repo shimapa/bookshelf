@@ -839,7 +839,6 @@ function renderHero() {
   heroHtml = html;
   $('heroTrack').innerHTML = html;
   fitSpines();
-  updateHeroNav();
   hero.classList.toggle('intro', heroIntro);
   if (heroIntro) setTimeout(() => hero.classList.remove('intro'), 1600);
   heroIntro = false;
@@ -876,19 +875,43 @@ function fitSpines(root = $('heroTrack')) {
   }
 }
 document.fonts?.ready.then(() => fitSpines());
-addEventListener('resize', () => { clearTimeout(fitSpines.timer); fitSpines.timer = setTimeout(() => { fitSpines(); updateHeroNav(); }, 150); });
+addEventListener('resize', () => { clearTimeout(fitSpines.timer); fitSpines.timer = setTimeout(fitSpines, 150); });
 
-// Arrows at the ends of the shelf; each one shows only while there are more books in its direction.
-function updateHeroNav() {
-  const shelf = $('heroShelf');
-  const max = shelf.scrollWidth - shelf.clientWidth;
-  $('heroPrev').hidden = shelf.scrollLeft < 8;
-  $('heroNext').hidden = shelf.scrollLeft > max - 8;
-}
-$('heroShelf').addEventListener('scroll', updateHeroNav, { passive: true });
-for (const [id, dir] of [['heroPrev', -1], ['heroNext', 1]]) {
-  $(id).addEventListener('click', () => $('heroShelf').scrollBy({ left: dir * $('heroShelf').clientWidth * 0.8, behavior: 'smooth' }));
-}
+// The shelf scrolls sideways by finger, trackpad, mouse wheel, or by dragging it with the mouse.
+// The wheel moves the shelf only while it can still move that way, so at either end the page scrolls on as usual.
+const heroShelf = $('heroShelf');
+heroShelf.addEventListener('wheel', (e) => {
+  if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return; // trackpads already scroll sideways
+  const max = heroShelf.scrollWidth - heroShelf.clientWidth;
+  const dy = e.deltaY * (e.deltaMode === 1 ? 32 : 1);
+  if ((dy < 0 && heroShelf.scrollLeft <= 0) || (dy > 0 && heroShelf.scrollLeft >= max - 1)) return;
+  e.preventDefault();
+  heroShelf.scrollLeft += dy;
+}, { passive: false });
+
+let heroDrag = null; // { x, left, moved }
+heroShelf.addEventListener('pointerdown', (e) => {
+  if (e.pointerType !== 'mouse' || e.button !== 0) return; // touch scrolls natively
+  heroDrag = { x: e.clientX, left: heroShelf.scrollLeft, moved: false };
+});
+addEventListener('pointermove', (e) => {
+  if (!heroDrag) return;
+  const dx = e.clientX - heroDrag.x;
+  if (!heroDrag.moved && Math.abs(dx) < 5) return;
+  if (!heroDrag.moved) { heroDrag.moved = true; heroShelf.classList.add('dragging'); }
+  heroShelf.scrollLeft = heroDrag.left - dx;
+});
+addEventListener('pointerup', () => {
+  if (!heroDrag) return;
+  // A drag that moved the shelf must not also open the book it started on.
+  if (heroDrag.moved) {
+    const swallow = (e) => { e.stopPropagation(); e.preventDefault(); };
+    addEventListener('click', swallow, { capture: true, once: true });
+    setTimeout(() => removeEventListener('click', swallow, { capture: true }), 0); // no click follows a release off the shelf
+  }
+  heroShelf.classList.remove('dragging');
+  heroDrag = null;
+});
 
 $('heroTrack').addEventListener('click', (e) => {
   const spine = e.target.closest('.spine');

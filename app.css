@@ -77,7 +77,7 @@ h1 { margin: 0; font-size: 26px; }
   transition: translate 0.3s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s;
 }
 .spine.light { --ink: #2b241d; --gilt: rgb(96 70 38 / 0.55); }
-/* ornaments, picked per book: gilt rules at head and tail, a dark title label, a tail band, or a plain cloth */
+/* ornaments, picked per book: gilt rules at head and tail, plain cloth, a tail band, or a gilt diamond */
 .spine::before, .spine::after { content: ''; position: absolute; left: 3px; right: 3px; pointer-events: none; }
 .spine[data-v="0"]::before { top: 4%; height: 4px; border-block: 1px solid var(--gilt); }
 .spine[data-v="0"]::after { bottom: 4%; height: 4px; border-block: 1px solid var(--gilt); }
@@ -95,25 +95,16 @@ h1 { margin: 0; font-size: 26px; }
   font: 400 12px/1.08 Prata, Georgia, serif; text-align: center; overflow: hidden; min-height: 0; overflow-wrap: normal;
   text-shadow: 0 1px 0 rgb(0 0 0 / 0.15);
 }
-/* a dark title label framed in gilt, sized to the title */
-.spine[data-v="1"] .spine-title { padding: 5px 1px; background: rgb(0 0 0 / 0.22); box-shadow: 0 0 0 1px var(--gilt); border-radius: 1px; }
+
 .spine.light .spine-title { text-shadow: none; }
 .spine-author { flex: none; font: 500 8.5px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.72; white-space: nowrap; max-height: 40%; overflow: hidden; }
 .spine[data-v="1"] .spine-author { display: none; }
 @media (hover: hover) { .spine:hover { translate: 0 -9px; filter: brightness(1.06); } }
 .spine:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; translate: 0 -9px; }
 .shelf-gap { flex: none; width: 22px; }
-/* Scroll arrows over the ends of the shelf */
-.hero-nav {
-  position: absolute; top: calc(50% - 30px); z-index: 1; width: 38px; height: 38px; display: grid; place-items: center;
-  border: 1px solid var(--line); border-radius: 50%; background: rgb(255 255 255 / 0.92); color: var(--ink); cursor: pointer;
-  box-shadow: 0 2px 10px rgb(40 30 20 / 0.16); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
-  transition: scale 0.15s, box-shadow 0.15s;
-}
-.hero-nav.next { right: 12px; }
-.hero-nav.prev { left: 12px; }
-.hero-nav:hover { box-shadow: 0 3px 14px rgb(40 30 20 / 0.24); }
-.hero-nav:active { scale: 0.94; }
+.hero-shelf { cursor: grab; }
+.hero-shelf.dragging { cursor: grabbing; }
+.hero-shelf.dragging .spine { pointer-events: none; }
 /* The very last book leans on its neighbour */
 .hero-track > .spine:last-child { rotate: -9deg; transform-origin: bottom left; margin-left: calc(var(--hero-max) * var(--h) * 0.156 + 1px); } /* sin 9° × height: its top just touches the neighbour */
 @media (hover: hover) { .hero-track > .spine:last-child:hover { translate: 0 -9px; } }
