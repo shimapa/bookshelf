@@ -2,7 +2,7 @@
 
 const GKEY_KEY = 'bookshelf.googleKey';
 const LAST_LOC_KEY = 'bookshelf.lastLocation';
-const FIELDS = ['title', 'authors', 'series', 'publisher', 'year', 'category', 'location', 'readBy', 'notes', 'description'];
+const FIELDS = ['title', 'authors', 'series', 'publisher', 'year', 'pages', 'category', 'location', 'readBy', 'notes', 'description'];
 // Who has read a book: stored as a comma-separated list of these keys ("pasha,alina").
 const READERS = { pasha: 'Паша', alina: 'Алина' };
 const POLYFILL = 'https://cdn.jsdelivr.net/npm/barcode-detector@3.2.2/ponyfill/+esm';
@@ -300,6 +300,7 @@ async function fromOpenLibrary(isbn) {
     publisher: b.publishers?.[0]?.name || '',
     year: (b.publish_date || '').match(/\d{4}/)?.[0] || '',
     cover: b.cover?.medium || '',
+    pages: b.number_of_pages ? String(b.number_of_pages) : '',
     category: subjectCategory((b.subjects || []).map((x) => x.name)),
   };
 }
@@ -315,6 +316,7 @@ async function fromGoogle(isbn) {
     publisher: v.publisher || '',
     year: (v.publishedDate || '').slice(0, 4),
     cover: (v.imageLinks?.thumbnail || '').replace(/^http:/, 'https:').replace('&edge=curl', ''),
+    pages: v.pageCount ? String(v.pageCount) : '',
     category: v.categories?.length ? (subjectCategory(v.categories) || 'nonfiction') : '',
   };
 }
@@ -349,9 +351,20 @@ async function fromChitaiGorod(isbn) {
     publisher: a.publisher?.title || '',
     year: a.yearPublishing ? String(a.yearPublishing) : '',
     cover: a.picture ? await cleanCgCover(cgImage(a.picture)) : '',
+    pages: a.pages || await cgPages(a.url),
     category: cgCategory(a.categoryChain),
     publisherSeries: a.publisherSeries?.title || '', // only used to match an existing series, never stored
   };
+}
+
+// Search results leave the page count empty; the product page has it.
+async function cgPages(url = '') {
+  try {
+    const d = await fetch(`${CG_API}/v1/products/slug/${encodeURIComponent(url.replace(/^product\//, ''))}`, { headers: { Authorization: await chitaiGorodToken() }, signal: timeout() });
+    return d.ok ? (await d.text()).match(/"pages":"?(\d+)/)?.[1] || '' : '';
+  } catch {
+    return '';
+  }
 }
 
 const cgImage = (path) => `https://content.img-gorod.ru/${path.replace(/^\//, '')}?width=400&height=560&fit=bounds`;
@@ -787,11 +800,12 @@ function rgbToHsl(r, g, b) {
 function spineStyle(b) {
   const [h, sat, l] = spineColors.get(b.cover) || clothHsl(b);
   const hash = hashOf(b.id + b.title);
-  const kids = b.category === 'kids';
-  const height = kids ? 0.66 + ((hash >> 3) % 22) / 100 : 0.8 + ((hash >> 3) % 21) / 100;
-  const width = (kids ? 20 : 24) + (hash >> 9) % (kids ? 10 : 15);
+  const height = 0.8 + ((hash >> 3) % 21) / 100;
+  // A spine is as thick as the book: about 4 px per hundred pages on top of the boards; unknown page count, a middling book.
+  const pages = parseInt(b.pages, 10);
+  const width = Math.round(pages ? Math.min(62, Math.max(18, 14 + pages * 0.045)) : 24 + (hash >> 9) % 12);
   const light = l > 0.56;
-  return { style: `--spine:hsl(${h.toFixed(0)} ${(sat * 100).toFixed(0)}% ${(l * 100).toFixed(0)}%);--h:${height.toFixed(2)};--w:${width}px`, variant: hash % 4, light, wide: width >= 32 };
+  return { style: `--spine:hsl(${h.toFixed(0)} ${(sat * 100).toFixed(0)}% ${(l * 100).toFixed(0)}%);--h:${height.toFixed(2)};--w:${width}px`, variant: hash % 4, light, wide: width >= 34 };
 }
 
 // A spine carries the short title: no subtitle, no edition note in brackets.
@@ -812,23 +826,68 @@ function spineHtml(b, i) {
 
 function renderHero() {
   const hero = $('hero');
-  if (!books.length) { hero.hidden = true; return; }
   const pub = (b) => publisherName(b.publisher) || '￿';
   const order = (a, b) => collator.compare(pub(a), pub(b)) || collator.compare(a.authors || '￿', b.authors || '￿') || collator.compare(a.title, b.title);
-  const all = [...books].sort(order);
-  const groups = [all.filter((b) => b.category !== 'kids' && isRussian(b)), all.filter((b) => b.category !== 'kids' && !isRussian(b)), all.filter((b) => b.category === 'kids')]
-    .filter((g) => g.length);
+  // Grown-up books only: picture books have hardly any spine. Russian books first, a little gap, then the rest.
+  const all = books.filter((b) => b.category !== 'kids').sort(order);
+  if (!all.length) { hero.hidden = true; return; }
+  const groups = [all.filter(isRussian), all.filter((b) => !isRussian(b))].filter((g) => g.length);
   let i = 0;
-  // A bookend stands between the Russian, other-language and children's books.
-  const html = groups.map((g) => g.map((b) => spineHtml(b, i++)).join('')).join('<span class="bookend" aria-hidden="true"></span>');
+  const html = groups.map((g) => g.map((b) => spineHtml(b, i++)).join('')).join('<span class="shelf-gap" aria-hidden="true"></span>');
   hero.hidden = false;
   if (html === heroHtml) return;
   heroHtml = html;
   $('heroTrack').innerHTML = html;
+  fitSpines();
+  updateHeroNav();
   hero.classList.toggle('intro', heroIntro);
   if (heroIntro) setTimeout(() => hero.classList.remove('intro'), 1600);
   heroIntro = false;
   sampleSpineColors();
+}
+
+// Titles never end in an ellipsis: each one gets the largest type at which it fits the spine in at most two lines.
+// The author's name gives way first when there is no room for both.
+function fitSpines(root = $('heroTrack')) {
+  for (const spine of root.querySelectorAll('.spine')) {
+    const title = spine.querySelector('.spine-title'), author = spine.querySelector('.spine-author');
+    if (author) author.hidden = false;
+    const fits = () => {
+      const room = spine.clientWidth - 5;
+      const lh = parseFloat(title.style.fontSize) * 1.08;
+      return title.offsetWidth <= Math.min(room, lh * 2 + 3) && title.scrollHeight <= title.clientHeight + 1;
+    };
+    const tryFit = (min) => {
+      for (let size = 12.5; size >= min; size -= 0.5) {
+        title.style.fontSize = `${size}px`;
+        if (fits()) return true;
+      }
+      return false;
+    };
+    // With the author the title must still be comfortably readable; otherwise the title gets the whole spine.
+    if (author && tryFit(10)) continue;
+    if (author) author.hidden = true;
+    if (tryFit(7)) continue;
+    // A long title on a thin book: the spine grows just enough to take it in two lines.
+    for (let w = spine.offsetWidth + 3; w <= 70; w += 3) {
+      spine.style.setProperty('--w', `${w}px`);
+      if (tryFit(8)) break;
+    }
+  }
+}
+document.fonts?.ready.then(() => fitSpines());
+addEventListener('resize', () => { clearTimeout(fitSpines.timer); fitSpines.timer = setTimeout(() => { fitSpines(); updateHeroNav(); }, 150); });
+
+// Arrows at the ends of the shelf; each one shows only while there are more books in its direction.
+function updateHeroNav() {
+  const shelf = $('heroShelf');
+  const max = shelf.scrollWidth - shelf.clientWidth;
+  $('heroPrev').hidden = shelf.scrollLeft < 8;
+  $('heroNext').hidden = shelf.scrollLeft > max - 8;
+}
+$('heroShelf').addEventListener('scroll', updateHeroNav, { passive: true });
+for (const [id, dir] of [['heroPrev', -1], ['heroNext', 1]]) {
+  $(id).addEventListener('click', () => $('heroShelf').scrollBy({ left: dir * $('heroShelf').clientWidth * 0.8, behavior: 'smooth' }));
 }
 
 $('heroTrack').addEventListener('click', (e) => {
@@ -851,7 +910,7 @@ async function sampleSpineColors() {
         spineColors.set(b.cover, hsl.map((v) => +v.toFixed(3)));
         for (const el of document.querySelectorAll(`.spine[data-id="${CSS.escape(b.id)}"]`)) {
           const { style, light } = spineStyle(b);
-          el.style.cssText = `${style};--i:${el.style.getPropertyValue('--i')}`;
+          el.style.setProperty('--spine', style.match(/--spine:([^;]+)/)[1]); // size stays as fitted
           el.classList.toggle('light', light);
         }
       }

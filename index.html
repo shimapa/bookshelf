@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pacifico&family=Prata&display=swap">
-<link rel="stylesheet" href="app.css?v=39">
+<link rel="stylesheet" href="app.css?v=40">
 </head>
 <body>
 
@@ -32,12 +32,14 @@
     <button data-action="gkey" class="owner-only">Ключ Google Books API…</button>
     <button data-action="signin" class="visitor-only">Войти</button>
     <button data-action="signout" class="owner-only">Выйти</button>
-    <span class="version">Версия 39</span>
+    <span class="version">Версия 40</span>
   </div>
 </header>
 
 <section id="hero" class="hero" aria-label="Все книги корешками" hidden>
-  <div class="hero-shelf"><div id="heroTrack" class="hero-track"></div></div>
+  <div id="heroShelf" class="hero-shelf"><div id="heroTrack" class="hero-track"></div></div>
+  <button type="button" id="heroPrev" class="hero-nav prev" aria-label="Прокрутить влево" hidden><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M11 3.5L5.5 9l5.5 5.5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  <button type="button" id="heroNext" class="hero-nav next" aria-label="Прокрутить вправо" hidden><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M7 3.5L12.5 9 7 14.5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
 </section>
 
 <div class="tools">
@@ -121,6 +123,7 @@
     <div class="row">
       <label>Издательство <input name="publisher"></label>
       <label class="short">Год <input name="year" inputmode="numeric"></label>
+      <label class="short">Страниц <input name="pages" inputmode="numeric"></label>
     </div>
     <div class="field">
       <span class="field-label">Категория</span>
@@ -208,6 +211,6 @@
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=39"></script>
+<script src="app.js?v=40"></script>
 </body>
 </html>
