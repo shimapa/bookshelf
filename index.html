@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://images.weserv.nl">
 <link rel="preconnect" href="https://covers.openlibrary.org">
 <link rel="dns-prefetch" href="https://archive.org">
-<link rel="stylesheet" href="app.css?v=21">
+<link rel="stylesheet" href="app.css?v=22">
 </head>
 <body>
 
@@ -27,7 +27,7 @@
     <button data-action="gkey" class="owner-only">Ключ Google Books API…</button>
     <button data-action="signin" class="visitor-only">Войти</button>
     <button data-action="signout" class="owner-only">Выйти</button>
-    <span class="version">Версия 21</span>
+    <span class="version">Версия 22</span>
   </div>
 </header>
 
@@ -74,13 +74,15 @@
 <div id="sheet" class="sheet-wrap" hidden>
   <form id="bookForm" class="sheet">
     <div class="sheet-head">
-      <span id="fCover" class="cover"></span>
+      <span id="fCover" class="cover zoomable" title="Открыть обложку"></span>
       <div>
         <p id="sheetNote" class="note"></p>
         <p class="isbn-line">ISBN <span id="fIsbnText"></span></p>
         <p id="sheetDetail" class="isbn-line" hidden></p>
         <a id="grLink" class="isbn-line gr-link" target="_blank" rel="noopener" hidden></a>
         <button type="button" id="coverBtn" class="link-btn owner-only">Сменить обложку</button>
+        <button type="button" id="photoBtn" class="link-btn owner-only">Сфотографировать обложку</button>
+        <input id="photoInput" type="file" accept="image/*" capture="environment" hidden>
       </div>
     </div>
     <div id="coverPicker" class="cover-picker" hidden></div>
@@ -136,9 +138,15 @@
   </form>
 </div>
 
+<!-- Full-screen cover -->
+<div id="lightbox" class="lightbox" hidden>
+  <img id="lightboxImg" alt="Обложка">
+  <button type="button" class="lightbox-close" aria-label="Закрыть"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M5 5l12 12M17 5L5 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+</div>
+
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=21"></script>
+<script src="app.js?v=22"></script>
 </body>
 </html>

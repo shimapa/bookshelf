@@ -185,6 +185,29 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 .sheet .about textarea { resize: none; overflow: hidden; line-height: 1.5; white-space: pre-wrap; }
 .sheet .about textarea[readonly] { font-size: 15px; color: var(--ink); }
 
+/* Full-screen cover */
+.cover.zoomable:has(img) { cursor: zoom-in; }
+.lightbox {
+  position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center;
+  padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+  background: rgb(24 21 17 / 0.92); cursor: zoom-out;
+  animation: lightbox-in 0.25s ease-out;
+}
+.lightbox img {
+  max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 2px 4px 4px 2px;
+  box-shadow: 0 20px 50px -12px rgb(0 0 0 / 0.6);
+  animation: cover-in 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.lightbox-close {
+  position: absolute; top: max(12px, env(safe-area-inset-top)); right: 12px;
+  width: 44px; height: 44px; display: grid; place-items: center;
+  background: rgb(255 255 255 / 0.12); color: #fff; border: 0; border-radius: 999px; cursor: pointer;
+}
+@keyframes lightbox-in { from { opacity: 0; } }
+@keyframes cover-in { from { opacity: 0; transform: scale(0.92); } }
+@media (prefers-reduced-motion: reduce) { .lightbox, .lightbox img { animation: none; } }
+html:has(.lightbox:not([hidden])) { overflow: hidden; }
+
 /* Cover picker */
 .link-btn { display: block; margin-top: 6px; padding: 0; background: none; border: 0; color: var(--accent); font-size: 13px; cursor: pointer; text-align: left; }
 .link-btn:hover { text-decoration: underline; }

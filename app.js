@@ -500,8 +500,12 @@ function clothCover(b) {
 }
 
 // Cloth binding always, photo on top when there is one (it fades in on load, see the load listener).
+// Photos taken on this device are shown from memory until GitHub serves the uploaded file.
+const localPhotos = new Map();
+
 function coverInner(b, lazy = true) {
   if (!b.cover) return clothCover(b);
+  if (localPhotos.has(b.cover)) return clothCover(b) + `<img src="${localPhotos.get(b.cover)}" alt="">`;
   // Open Library answers every cover request with a redirect to archive.org, slow even when cached;
   // the image proxy serves it in one cached hop. The original URL stays as a fallback.
   const viaProxy = b.cover.includes('covers.openlibrary.org');
@@ -689,6 +693,86 @@ $('coverBtn').addEventListener('click', async () => {
       <span class="cover">${coverInner({ ...sheetBook, cover: url })}</span>
     </button>`).join('') + (options.length ? '' : '<p class="results-state">Других обложек не нашлось.</p>');
 });
+
+/* ---------- cover photo ---------- */
+
+$('photoBtn').addEventListener('click', () => { if (editing && token) $('photoInput').click(); });
+
+$('photoInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file || !editing || !token) return;
+  const sheetBook = editing.book;
+  toast('Загружаю фото…', 0);
+  try {
+    const dataUrl = await coverFromPhoto(file);
+    const name = `covers/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+    await github(`contents/${name}`, {
+      method: 'PUT',
+      body: { message: `Cover photo for «${sheetBook.title || 'book'}»`, content: dataUrl.split(',')[1], branch: DATA_BRANCH },
+    });
+    const url = `https://raw.githubusercontent.com/${REPO}/${DATA_BRANCH}/${name}`;
+    localPhotos.set(url, dataUrl);
+    if (editing?.book === sheetBook) {
+      editing.cover = url;
+      $('fCover').innerHTML = coverInner({ ...sheetBook, cover: url }, false);
+      settleCovers($('fCover'));
+      $('coverPicker').hidden = true;
+    }
+    toast('Фото загружено — нажмите «Сохранить»', 3000);
+  } catch (err) {
+    toast(err.status ? 'Не удалось сохранить фото в GitHub' : 'Не удалось обработать фото', 3500);
+  }
+});
+
+// Crops the photo to the shelf's 2:3 cover shape (centred) and scales it to 600×900 JPEG, ~80 KB.
+async function coverFromPhoto(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode(); // browsers apply the photo's EXIF rotation when decoding into an <img>
+    const W = 600, H = 900;
+    const scale = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+    const sw = W / scale, sh = H / scale;
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    canvas.getContext('2d').drawImage(img, (img.naturalWidth - sw) / 2, (img.naturalHeight - sh) / 2, sw, sh, 0, 0, W, H);
+    return canvas.toDataURL('image/jpeg', 0.85);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/* ---------- full-screen cover ---------- */
+
+// Bigger versions of the same image where the host offers one.
+function largeCoverUrl(url) {
+  return url
+    .replace(/(img-gorod\.ru\/[^?]+)\?width=\d+&height=\d+/, '$1?width=1200&height=1680')
+    .replace(/cdn\.litres\.ru\/pub\/c\/cover_\d+\//, 'cdn.litres.ru/pub/c/cover_max1500/')
+    .replace(/(avatars\.mds\.yandex\.net\/get-mpic\/\d+\/[^/]+)\/[^/?]+$/, '$1/orig')
+    .replace(/(covers\.openlibrary\.org\/b\/[^?]+)-M\.jpg/, '$1-L.jpg')
+    .replace(/(images\.weserv\.nl\/\?.*)&w=400&h=600/, '$1&w=1200&h=1800')
+    .replace(/(images\.weserv\.nl\/\?url=[^&]*covers\.openlibrary[^&]*)&w=400/, '$1&w=1200');
+}
+
+$('fCover').addEventListener('click', () => {
+  const shown = $('fCover').querySelector('img');
+  if (!shown) return; // cloth binding: nothing to enlarge
+  const big = $('lightboxImg');
+  big.src = shown.currentSrc || shown.src; // instant, then swap in the larger file once it has loaded
+  $('lightbox').hidden = false;
+  const cover = editing?.cover ?? editing?.book.cover;
+  const large = cover && !localPhotos.has(cover) ? largeCoverUrl(cover) : '';
+  if (large && large !== big.src) {
+    const hi = new Image();
+    hi.onload = () => { if (!$('lightbox').hidden) big.src = large; };
+    hi.src = large;
+  }
+});
+$('lightbox').addEventListener('click', () => { $('lightbox').hidden = true; });
 
 $('coverPicker').addEventListener('click', (e) => {
   const option = e.target.closest('.cover-option');
@@ -1154,7 +1238,8 @@ $('locations').addEventListener('click', (e) => {
 $('sort').addEventListener('change', render);
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
-  if (!$('scanner').hidden) stopScanner();
+  if (!$('lightbox').hidden) $('lightbox').hidden = true;
+  else if (!$('scanner').hidden) stopScanner();
   else if (!$('results').hidden) { $('results').hidden = true; searchRun++; }
   else if (!$('sheet').hidden) closeSheet();
 });
