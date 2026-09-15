@@ -992,14 +992,6 @@ function openFan(stackEl) {
   const step = n > 1 ? Math.min(16 * Math.PI / 180, (2 * maxAngle) / (n - 1)) : 0;
   const cx = vw / 2, cy = Math.min(vh * 0.5, vh - h / 2 - 90);
 
-  const el = document.createElement('div');
-  el.className = 'fan';
-  el.innerHTML = `<div class="fan-backdrop"></div><p class="fan-title">${esc(stack.name)}<span>${n} ${plural(n, BOOK_FORMS)}</span></p>` +
-    stack.books.map((b) => `<button type="button" class="fan-card" data-id="${esc(b.id)}" style="width:${w}px" aria-label="${esc(b.title)}"><span class="fan-lift"><span class="cover">${coverInner(b, false)}${ratingBadge(b)}</span></span></button>`).join('');
-  document.body.append(el);
-  settleCovers(el);
-
-  const cards = [...el.querySelectorAll('.fan-card')];
   const at = (x, y, angle, scale) => `translate(${x - w / 2}px, ${y - h / 2}px) rotate(${angle}rad) scale(${scale})`;
   // Where card i sits in the stack on the shelf: the first three match the peeking covers exactly
   // (position, size and tilt); the rest tuck in behind the last one. Measured again on close, as the page may have scrolled.
@@ -1013,12 +1005,22 @@ function openFan(stackEl) {
     const deg = parseFloat(getComputedStyle(cover).rotate) || 0;
     return at(r.left + r.width / 2, r.top + r.height / 2, deg * Math.PI / 180, cover.offsetWidth / w);
   };
+  // Starting positions are measured before the fan exists and written into the cards' markup: a card whose
+  // first style had no position would fly in from the corner of the screen instead of rising out of the stack.
+  const starts = stack.books.map((_, i) => home(i));
+
+  const el = document.createElement('div');
+  el.className = 'fan';
+  el.innerHTML = `<div class="fan-backdrop"></div><p class="fan-title">${esc(stack.name)}<span>${n} ${plural(n, BOOK_FORMS)}</span></p>` +
+    stack.books.map((b, i) => `<button type="button" class="fan-card" data-id="${esc(b.id)}" style="width:${w}px;transform:${starts[i]};z-index:${n - i};transition-delay:${i * 30}ms" aria-label="${esc(b.title)}"><span class="fan-lift"><span class="cover">${coverInner(b, false)}${ratingBadge(b)}</span></span></button>`).join('');
+  document.body.append(el);
+  settleCovers(el);
+
+  // The first book lies on top, as in the stack; cards leave with the same glide and 30 ms step they return with.
+  const cards = [...el.querySelectorAll('.fan-card')];
   cards.forEach((card, i) => {
-    card.style.transform = home(i);
-    card.style.zIndex = n - i; // the first book lies on top, as in the stack
     const a = (i - (n - 1) / 2) * step;
     card.dataset.to = at(cx + R * Math.sin(a), cy + R * (1 - Math.cos(a)), a, 1);
-    card.style.transitionDelay = `${i * 30}ms`; // the mirror of closing: same glide, same 30 ms step
   });
   stackEl.classList.add('fanned'); // the cards are the stack now; the shelf copy hides until they return
   requestAnimationFrame(() => requestAnimationFrame(() => {
