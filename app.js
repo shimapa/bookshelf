@@ -652,7 +652,7 @@ function render() {
   let html;
   const kidsShelf = kids.length ? `
     <section class="shelf-section kids-section">
-      <h2 class="shelf-title kids-title">${BALLOON}Детская полка</h2>
+      <h2 class="shelf-title kids-title">${BALLOON}Полка Феди</h2>
       <div class="shelf kids-shelf">${kids.map(bookHtml).join('')}${sections.length ? '' : addBook}</div>
     </section>` : '';
   if (!sections.length && !kids.length) {
