@@ -1,25 +1,18 @@
 :root {
-  --bg: #f7f5f0;
+  --bg: #f7f6f3;
   --card: #ffffff;
   --ink: #1f1d1a;
-  --muted: #7a756c;
-  --line: #e4e0d7;
+  --muted: #736e66;
+  --line: #e3dfd7;
   --accent: #2f5d50;
   --danger: #a33a2c;
   --radius: 10px;
+  /* shelf */
+  --plank-top: #e9e1d2;
+  --plank-face: #d9cdb7;
+  --gap: 22px;
+  --cover-min: 96px;
   color-scheme: light;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #161514;
-    --card: #211f1d;
-    --ink: #ece8e1;
-    --muted: #9a948a;
-    --line: #34312d;
-    --accent: #7fb3a2;
-    --danger: #e07a6b;
-    color-scheme: dark;
-  }
 }
 
 * { box-sizing: border-box; }
@@ -30,7 +23,7 @@ body {
   color: var(--ink);
   font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   padding: 0 16px calc(96px + env(safe-area-inset-bottom));
-  max-width: 760px;
+  max-width: 1120px;
   margin: 0 auto;
 }
 button, input, select, textarea { font: inherit; color: inherit; }
@@ -40,7 +33,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .brand { display: flex; align-items: baseline; gap: 10px; }
 h1 { margin: 0; font-size: 26px; font-weight: 650; letter-spacing: -0.02em; }
 .count { color: var(--muted); }
-.icon-btn { background: none; border: 0; font-size: 24px; line-height: 1; padding: 4px 8px; cursor: pointer; color: var(--muted); }
+.icon-btn { background: none; border: 0; line-height: 0; padding: 8px; margin-right: -8px; cursor: pointer; color: var(--muted); border-radius: 8px; }
+.icon-btn:hover { color: var(--ink); background: var(--line); }
 .menu {
   position: absolute; right: 0; top: 56px; z-index: 5;
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
@@ -60,19 +54,76 @@ h1 { margin: 0; font-size: 26px; font-weight: 650; letter-spacing: -0.02em; }
 .tools select { flex: none; }
 input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 
-/* Book list */
-.list { display: flex; flex-direction: column; }
-.book {
-  display: flex; gap: 14px; align-items: center; padding: 10px 4px;
-  border-bottom: 1px solid var(--line); cursor: pointer; background: none; border-left: 0; border-right: 0; border-top: 0;
-  text-align: left; width: 100%;
+/* Shelf: covers stand on a plank per row, labels sit below it like shelf tags. */
+.shelf {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(var(--cover-min), 20vw, 148px), 1fr));
+  column-gap: var(--gap);
+  row-gap: 40px;
+  align-items: start;
+  padding-top: 12px;
 }
-.book:hover { background: color-mix(in srgb, var(--card) 60%, transparent); }
-.book img, .book .cover-ph { width: 44px; height: 64px; flex: none; border-radius: 3px; object-fit: cover; background: var(--line); }
-.book .meta { min-width: 0; }
-.book .title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.book .sub { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.book .tag { display: inline-block; margin-top: 3px; font-size: 12px; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); padding: 1px 8px; border-radius: 999px; }
+.shelf > .empty { grid-column: 1 / -1; }
+
+.book {
+  display: flex; flex-direction: column; min-width: 0;
+  background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: inherit;
+}
+.book .stand { position: relative; padding-bottom: 12px; }
+/* The plank: runs under the whole row by bleeding into the column gaps. */
+.book .stand::after {
+  content: ''; position: absolute; bottom: 0; height: 12px;
+  left: calc(var(--gap) / -2); right: calc(var(--gap) / -2);
+  background: linear-gradient(var(--plank-top) 0 3px, var(--plank-face) 3px);
+  box-shadow: 0 10px 12px -10px rgb(70 52 28 / 0.45);
+}
+.cover {
+  position: relative; display: block; aspect-ratio: 2 / 3; border-radius: 1px 3px 3px 1px; overflow: hidden;
+  background: var(--line);
+  box-shadow: 0 1px 1px rgb(40 30 20 / 0.12), 3px 6px 12px -6px rgb(40 30 20 / 0.45);
+  transform-origin: bottom center;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cover { container-type: inline-size; }
+/* The cloth binding sits underneath; the photo fades in over it once loaded. */
+.cover img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  opacity: 0; transition: opacity 0.4s ease-out;
+}
+.cover img.loaded { opacity: 1; }
+/* Spine crease on the left edge, so a flat image reads as a bound book. */
+.cover::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgb(0 0 0 / 0.18) 0, rgb(255 255 255 / 0.18) 2px, rgb(0 0 0 / 0.06) 5px, transparent 10px);
+}
+.book:hover .cover, .book:focus-visible .cover {
+  transform: translateY(-6px);
+  box-shadow: 0 1px 1px rgb(40 30 20 / 0.12), 4px 14px 20px -8px rgb(40 30 20 / 0.45);
+}
+.book:focus-visible { outline: none; }
+.book:focus-visible .cover { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .cover, .cover img { transition: none; } }
+
+/* Books without a cover image get a cloth binding with the title stamped on it. */
+.cloth {
+  display: flex; flex-direction: column; justify-content: space-between; height: 100%;
+  padding: 14% 11% 10%; background: var(--cloth, #46474a); color: #f3eee4;
+}
+.cloth-title {
+  font-size: clamp(10px, 10.5cqi, 16px); line-height: 1.22; font-weight: 600; hyphens: auto; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
+  padding-top: 8px; border-top: 1px solid rgb(243 238 228 / 0.45);
+}
+.cloth-author { font-size: clamp(9px, 7.5cqi, 12px); line-height: 1.2; opacity: 0.8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.label { display: flex; flex-direction: column; gap: 2px; padding-top: 10px; min-width: 0; }
+.label .title {
+  font-size: 13px; line-height: 1.3; font-weight: 600;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.label .sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rating { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rating svg { width: 11px; height: 11px; fill: #b8862f; flex: none; }
 
 /* Location filter chips */
 .locations { display: flex; gap: 6px; overflow-x: auto; margin: 0 -16px 8px; padding: 0 16px 4px; scrollbar-width: none; }
@@ -82,7 +133,6 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 .chip.on { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 .chip.on span { color: inherit; opacity: 0.75; }
 
-.cover-ph { display: grid; place-items: center; color: var(--muted); font-size: 10px; text-align: center; }
 
 .empty { text-align: center; color: var(--muted); padding: 64px 16px; }
 .empty-title { font-size: 18px; color: var(--ink); font-weight: 600; margin-bottom: 4px; }
@@ -93,7 +143,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
   display: flex; gap: 8px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
   background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px);
   border-top: 1px solid var(--line);
-  max-width: 760px; margin: 0 auto;
+  max-width: 1120px; margin: 0 auto;
 }
 .isbn-form { display: flex; gap: 8px; flex: 1; min-width: 0; }
 .isbn-form input { flex: 1; }
@@ -138,7 +188,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
   .sheet { border-radius: 16px; }
 }
 .sheet-head { display: flex; gap: 14px; align-items: center; margin-bottom: 4px; }
-.sheet-head img, .sheet-head .cover-ph { width: 64px; height: 94px; border-radius: 4px; object-fit: cover; background: var(--line); flex: none; }
+.sheet-head .cover { width: 88px; flex: none; }
 .note { margin: 0 0 4px; font-weight: 600; }
 .note.warn { color: var(--danger); }
 .isbn-line { margin: 0; color: var(--muted); font-size: 13px; }

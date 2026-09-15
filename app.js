@@ -412,6 +412,26 @@ function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// Book-cloth colours for covers without an image; each title always gets the same one.
+const CLOTHS = ['#4f6150', '#3d5166', '#7d5236', '#74393a', '#8f6b2e', '#44464a', '#5e5170', '#2f5d50'];
+const STAR = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 .6l1.6 3.4 3.7.4-2.8 2.5.8 3.7L6 8.7 2.7 10.6l.8-3.7L.7 4.4l3.7-.4z"/></svg>';
+
+function clothCover(b) {
+  let h = 0;
+  for (const ch of b.title || '') h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return `<span class="cloth" style="--cloth:${CLOTHS[h % CLOTHS.length]}">
+    <span class="cloth-title" lang="${/[а-яё]/i.test(b.title) ? 'ru' : 'en'}">${esc(b.title)}</span><span class="cloth-author">${esc(b.authors)}</span></span>`;
+}
+
+// Cloth binding always, photo on top when there is one (it fades in on load, see the load listener).
+function coverInner(b) {
+  return clothCover(b) + (b.cover ? `<img src="${esc(b.cover)}" alt="" loading="lazy">` : '');
+}
+
+// Images fire load/error without bubbling: listen in the capture phase on the whole document.
+document.addEventListener('load', (e) => { if (e.target.matches?.('.cover img')) e.target.classList.add('loaded'); }, true);
+document.addEventListener('error', (e) => { if (e.target.matches?.('.cover img')) e.target.remove(); }, true);
+
 // Distinct locations, sorted, with book counts.
 function locations() {
   const counts = new Map();
@@ -450,12 +470,12 @@ function render() {
   $('empty').hidden = books.length > 0;
   $('list').innerHTML = shown.map((b) => `
     <button class="book" data-id="${esc(b.id)}">
-      ${b.cover ? `<img src="${esc(b.cover)}" alt="" loading="lazy">` : '<div class="cover-ph">No cover</div>'}
-      <div class="meta">
-        <div class="title">${esc(b.title)}</div>
-        <div class="sub">${esc([b.authors, b.year, b.rating ? `★ ${b.rating.toFixed(2)}` : ''].filter(Boolean).join(' · '))}</div>
-        ${b.location ? `<div class="tag">${esc(b.location)}</div>` : ''}
-      </div>
+      <span class="stand"><span class="cover">${coverInner(b)}</span></span>
+      <span class="label">
+        <span class="title">${esc(b.title)}</span>
+        <span class="sub">${esc(b.authors || b.year || '')}</span>
+        ${b.rating ? `<span class="rating">${STAR}${b.rating.toFixed(2)}</span>` : ''}
+      </span>
     </button>`).join('') ||
     (books.length ? '<p class="empty">Nothing matches your search.</p>' : '');
 }
@@ -471,9 +491,7 @@ function openSheet(book, { isNew = false, fromScan = false, note = '', warn = fa
   // New books default to the last location used, so a whole shelf can be scanned in a row.
   if (isNew && !book.location) f.elements.location.value = localStorage.getItem(LAST_LOC_KEY) || '';
   $('fIsbnText').textContent = book.isbn || '—';
-  $('fCoverImg').hidden = !book.cover;
-  $('fCoverPh').hidden = !!book.cover;
-  if (book.cover) $('fCoverImg').src = book.cover;
+  $('fCover').innerHTML = coverInner(book);
   $('sheetNote').textContent = note;
   $('sheetNote').className = 'note' + (warn ? ' warn' : '');
   $('sheetDetail').textContent = detail;
@@ -481,7 +499,7 @@ function openSheet(book, { isNew = false, fromScan = false, note = '', warn = fa
   $('grLink').hidden = !book.goodreadsUrl;
   if (book.goodreadsUrl) {
     $('grLink').href = book.goodreadsUrl;
-    $('grLink').textContent = `Goodreads ★ ${book.rating.toFixed(2)} · ${book.ratingsCount.toLocaleString('ru-RU')} ratings`;
+    $('grLink').textContent = `Goodreads ${book.rating.toFixed(2)} · ${book.ratingsCount.toLocaleString('ru-RU')} ratings`;
   }
   for (const el of f.elements) if (el.name) el.readOnly = !token; // visitors get a read-only view
   $('cancelBtn').textContent = token ? 'Cancel' : 'Close';
@@ -521,7 +539,6 @@ $('bookForm').addEventListener('submit', (e) => {
   if (isNew) updateRatings();
 });
 
-$('fCoverImg').addEventListener('error', () => { $('fCoverImg').hidden = true; $('fCoverPh').hidden = false; });
 $('cancelBtn').addEventListener('click', closeSheet);
 $('sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet') closeSheet(); });
 $('deleteBtn').addEventListener('click', () => {
@@ -529,10 +546,6 @@ $('deleteBtn').addEventListener('click', () => {
   deleteBook(editing.book.id);
   closeSheet();
 });
-// A cover URL that stops working falls back to the placeholder.
-$('list').addEventListener('error', (e) => {
-  if (e.target.tagName === 'IMG') e.target.outerHTML = '<div class="cover-ph">No cover</div>';
-}, true);
 $('list').addEventListener('click', (e) => {
   const el = e.target.closest('.book');
   if (el) openSheet(books.find((b) => b.id === el.dataset.id));
