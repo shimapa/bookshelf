@@ -75,9 +75,21 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
   --plank-top: #ffd36b;
   --plank-face: #f2b33d;
   margin-inline: -16px; padding: 22px 16px 36px;
-  background: var(--bg);
+  position: relative; isolation: isolate; overflow: hidden;
+  background: linear-gradient(#cfe5f7, #e2eff9 50%, #edf5fb);
   font-family: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
+/* Behind the books: a sky with soft clouds, twinkly stars and a paper plane, drawn once and tiled */
+.kids-section::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='520' height='440' viewBox='0 0 520 440'%3E%3Cg fill='%23fff'%3E%3Cpath opacity='.75' d='M42 92c0-13 10-22 23-22 5-14 18-23 33-23 18 0 32 12 35 28 12 1 21 9 21 20 0 11-9 19-21 19H64c-12 0-22-9-22-22z'/%3E%3Cpath opacity='.6' d='M330 250c0-10 8-17 18-17 4-11 14-18 26-18 14 0 25 9 27 22 10 1 17 7 17 16s-7 15-17 15h-54c-10 0-17-8-17-18z'/%3E%3Cpath opacity='.5' d='M392 58c0-7 6-12 13-12 3-8 10-13 19-13 10 0 18 7 20 16 7 0 12 5 12 11s-5 11-12 11h-39c-7 0-13-6-13-13z'/%3E%3C/g%3E%3Cg fill='%23ffd36b' opacity='.8'%3E%3Cpath d='M250 40l3 8 8 3-8 3-3 8-3-8-8-3 8-3z'/%3E%3Cpath d='M470 180l2.4 6 6 2.4-6 2.4-2.4 6-2.4-6-6-2.4 6-2.4z'/%3E%3Cpath d='M120 330l2 5 5 2-5 2-2 5-2-5-5-2 5-2z'/%3E%3C/g%3E%3Cg fill='%23a9cbe8' opacity='.7'%3E%3Ccircle cx='190' cy='170' r='2.5'/%3E%3Ccircle cx='60' cy='230' r='2'/%3E%3Ccircle cx='300' cy='390' r='2.5'/%3E%3Ccircle cx='500' cy='330' r='2'/%3E%3Ccircle cx='230' cy='280' r='1.6'/%3E%3C/g%3E%3Cg opacity='.55'%3E%3Cpath d='M150 205l52-20-18 42-9-15z' fill='%23fff'/%3E%3Cpath d='M175 212l27-27-18 42z' fill='%23dbe9f5'/%3E%3Cpath d='M146 214c-20 10-40 6-58 16' stroke='%23a9cbe8' stroke-width='1.5' stroke-dasharray='4 5' fill='none' stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 520px 440px;
+  animation: kids-sky 90s linear infinite;
+}
+@keyframes kids-sky { to { background-position: 520px 0; } }
+@media (prefers-reduced-motion: reduce) { .kids-section::before { animation: none; } }
+/* The sky shows under the planks, so their shadow is a solid lip instead of a fade into the page colour. */
+.kids-section .book .stand::after { background: linear-gradient(var(--plank-top) 0 3px, var(--plank-face) 3px 12px, #d99a2b 12px 14px, transparent 14px); }
 @media (min-width: 760px) { .kids-section { border-radius: 28px; } }
 .kids-section .shelf-title { display: flex; align-items: center; gap: 8px; color: #2e5b86; font-size: 20px; font-weight: 700; }
 .kids-icon { flex: none; margin-top: -6px; transform: rotate(-8deg); transform-origin: 50% 90%; animation: balloon-float 4.2s ease-in-out infinite; }
@@ -102,7 +114,6 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 .kids-shelf .cover { transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), rotate 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
 .kids-shelf .cloth { filter: saturate(1.35) brightness(1.1); }
 .kids-shelf .label .title { color: #1f3c58; }
-.kids-shelf .loc-tag { border-color: #c9dcef; color: #4b6d8f; background: rgb(255 255 255 / 0.6); }
 .kids-shelf .add-cover { background: #d3e3f2; color: #7d9bb9; }
 @media (prefers-reduced-motion: reduce) { .kids-shelf .book .cover { rotate: 0deg; } }
 
@@ -183,6 +194,13 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 .fan-card:focus-visible .cover { outline: 2px solid #fff; outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { .fan-card, .fan-backdrop, .fan-title, .stack-cover { transition-duration: 0.01ms; } }
 html:has(.fan) { overflow: hidden; }
+html { scrollbar-gutter: stable; } /* locking scroll under the fan must not shift the shelf sideways */
+.stack.fanned .stack-covers { visibility: hidden; }
+/* Returning cards glide straight home, without the springy overshoot of opening, and land in stack order. */
+.fan.closing .fan-card { transition: transform 0.42s cubic-bezier(0.4, 0, 0.2, 1); }
+.fan.closing .fan-lift { translate: none; }
+.fan-card .gr-badge { transition: opacity 0.2s; }
+.fan.closing .gr-badge { opacity: 0; }
 
 /* Children's covers keep their own proportions, bottom-aligned in the 2:3 slot on the plank */
 .kids-shelf .book:not(.stack) .stand { display: flex; align-items: flex-end; justify-content: center; box-sizing: content-box; aspect-ratio: 2 / 3; container-type: size; }
@@ -212,8 +230,16 @@ html:has(.fan) { overflow: hidden; }
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
 .label .sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rating { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.rating svg { width: 11px; height: 11px; fill: #b8862f; flex: none; }
+/* Goodreads rating pinned to the cover's top-right corner */
+.gr-badge {
+  position: absolute; top: 5px; right: 5px; z-index: 1;
+  display: inline-flex; align-items: center; gap: 2px; padding: 2px 6px 2px 5px;
+  font: 600 11px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-variant-numeric: tabular-nums; letter-spacing: 0.01em;
+  color: #fff; background: rgb(28 24 20 / 0.62); border-radius: 999px;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+}
+.gr-badge svg { width: 10px; height: 10px; fill: #f4c152; flex: none; }
 
 /* Category filter: a segmented control, visually distinct from the room chips below it */
 .segments {
@@ -234,6 +260,20 @@ html:has(.fan) { overflow: hidden; }
 .chip span { color: var(--muted); margin-left: 2px; }
 .chip.on { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 .chip.on span { color: inherit; opacity: 0.75; }
+
+/* Room colours: soft tints for tags, the deeper shade fills a chosen chip */
+[data-color="0"] { --tag-bg: #e7efe3; --tag-line: #cfdfc9; --tag-ink: #45664a; }
+[data-color="1"] { --tag-bg: #f6ecd8; --tag-line: #e9d6b0; --tag-ink: #80601f; }
+[data-color="2"] { --tag-bg: #f7e5de; --tag-line: #ecc8bb; --tag-ink: #8e4a38; }
+[data-color="3"] { --tag-bg: #e3ebf4; --tag-line: #c9d8e9; --tag-ink: #3d5c7d; }
+[data-color="4"] { --tag-bg: #ede7f4; --tag-line: #d9cee8; --tag-ink: #61507f; }
+[data-color="5"] { --tag-bg: #dfeeea; --tag-line: #c1ded7; --tag-ink: #2f665b; }
+[data-color="6"] { --tag-bg: #efeedb; --tag-line: #dcdab5; --tag-ink: #64632f; }
+[data-color="7"] { --tag-bg: #f6e4eb; --tag-line: #e8c8d5; --tag-ink: #884a62; }
+.chip[data-color]:not(.on), .loc-tag[data-color] { background: var(--tag-bg); border-color: var(--tag-line); color: var(--tag-ink); }
+.chip[data-color]:not(.on) span { color: inherit; opacity: 0.7; }
+.chip[data-color].on { background: var(--tag-ink); border-color: var(--tag-ink); color: #fff; }
+.tags .chip[data-color]:hover:not(.on) { border-color: var(--tag-ink); }
 
 
 .empty { text-align: center; color: var(--muted); padding: 64px 16px; }

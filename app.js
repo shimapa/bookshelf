@@ -509,6 +509,17 @@ const PLUS_LARGE = '<svg width="34" height="34" viewBox="0 0 34 34" aria-hidden=
 const BALLOON = '<svg class="kids-icon" width="26" height="34" viewBox="0 0 26 34" aria-hidden="true"><path d="M13 23c-5.5 0-10-4.9-10-10.5S7.5 2 13 2s10 4.9 10 10.5S18.5 23 13 23z" fill="#f08a5d"/><path d="M9 7.5c1-1.4 2.4-2.2 4-2.4" stroke="#fff" stroke-width="1.8" stroke-linecap="round" fill="none" opacity=".7"/><path d="M11.5 23h3l-1.5 2.2z" fill="#e0764a"/><path class="balloon-string" d="M13 25.2c-1.8 2 1.8 3.6 0 5.8" stroke="#6a88a8" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>';
 const STAR = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 .6l1.6 3.4 3.7.4-2.8 2.5.8 3.7L6 8.7 2.7 10.6l.8-3.7L.7 4.4l3.7-.4z"/></svg>';
 
+// Goodreads rating as a small badge in the cover's top-right corner.
+const ratingBadge = (b) => b.rating ? `<span class="gr-badge" title="Goodreads">${STAR}${b.rating.toFixed(1)}</span>` : '';
+
+// Each room gets its own quiet colour; the same name always gets the same one.
+const LOC_COLORS = 8;
+function locColor(name = '') {
+  let h = 1;
+  for (const ch of name) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+  return h % LOC_COLORS;
+}
+
 function clothCover(b) {
   let h = 0;
   for (const ch of b.title || '') h = (h * 31 + ch.charCodeAt(0)) >>> 0;
@@ -639,7 +650,7 @@ function renderLocations() {
   const pool = books.filter(inCategory);
   const count = (name) => pool.filter((b) => (b.location || '') === name).length;
   const unplaced = count('');
-  const chip = (value, label, n) => `<button class="chip${locFilter === value ? ' on' : ''}" data-loc="${value === null ? '*' : esc(value)}">${esc(label)} <span>${n}</span></button>`;
+  const chip = (value, label, n) => `<button class="chip${locFilter === value ? ' on' : ''}" data-loc="${value === null ? '*' : esc(value)}"${value ? ` data-color="${locColor(value)}"` : ''}>${esc(label)} <span>${n}</span></button>`;
   $('locations').hidden = locs.length === 0;
   $('locations').innerHTML = locs.length === 0 ? '' : [
     chip(null, 'Все', pool.length),
@@ -672,12 +683,11 @@ function render() {
   let index = 0;
   const bookHtml = (b, kids = false) => `
     <button class="book" data-id="${esc(b.id)}">
-      <span class="stand"><span class="cover"${kids ? kidsRatio(b) : ''}>${coverInner(b, index++ >= 12)}</span></span>
+      <span class="stand"><span class="cover"${kids ? kidsRatio(b) : ''}>${coverInner(b, index++ >= 12)}${ratingBadge(b)}</span></span>
       <span class="label">
         <span class="title">${esc(b.title)}</span>
         <span class="sub">${esc(b.authors || b.year || '')}</span>
-        ${b.rating ? `<span class="rating">${STAR}${b.rating.toFixed(2)}</span>` : ''}
-        ${b.location && locFilter === null ? `<span class="loc-tag">${esc(b.location)}</span>` : ''}
+        ${b.location && locFilter === null ? `<span class="loc-tag" data-color="${locColor(b.location)}">${esc(b.location)}</span>` : ''}
       </span>
     </button>`;
   // Two or more visible books of one series stand as a single stack where the first of them would be.
@@ -763,25 +773,37 @@ function openFan(stackEl) {
   const el = document.createElement('div');
   el.className = 'fan';
   el.innerHTML = `<div class="fan-backdrop"></div><p class="fan-title">${esc(stack.name)}<span>${n} ${plural(n, BOOK_FORMS)}</span></p>` +
-    stack.books.map((b) => `<button type="button" class="fan-card" data-id="${esc(b.id)}" style="width:${w}px" aria-label="${esc(b.title)}"><span class="fan-lift"><span class="cover">${coverInner(b, false)}</span></span></button>`).join('');
+    stack.books.map((b) => `<button type="button" class="fan-card" data-id="${esc(b.id)}" style="width:${w}px" aria-label="${esc(b.title)}"><span class="fan-lift"><span class="cover">${coverInner(b, false)}${ratingBadge(b)}</span></span></button>`).join('');
   document.body.append(el);
   settleCovers(el);
 
   const cards = [...el.querySelectorAll('.fan-card')];
   const at = (x, y, angle, scale) => `translate(${x - w / 2}px, ${y - h / 2}px) rotate(${angle}rad) scale(${scale})`;
-  const origin = () => { const r = stackEl.querySelector('.stack-cover[data-depth="0"]')?.getBoundingClientRect() || front; return [r.left + r.width / 2, r.top + r.height / 2, r.width / w]; };
-  const [ox, oy, os] = origin();
+  // Where card i sits in the stack on the shelf: the first three match the peeking covers exactly
+  // (position, size and tilt); the rest tuck in behind the last one. Measured again on close, as the page may have scrolled.
+  const home = (i) => {
+    // A sync may have redrawn the shelf meanwhile: find the stack again by its series.
+    if (!stackEl.isConnected) stackEl = $('list').querySelector(`.stack[data-series="${CSS.escape(stackEl.dataset.series)}"]`) || stackEl;
+    stackEl.classList.add('fanned');
+    const cover = stackEl.querySelector(`.stack-cover[data-depth="${Math.min(i, 2)}"]`) || stackEl.querySelector('.stack-cover');
+    if (!cover) return at(front.left + front.width / 2, front.top + front.height / 2, 0, front.width / w);
+    const r = cover.getBoundingClientRect(); // rotation keeps the centre, so the bounding box centre is the cover's centre
+    const deg = parseFloat(getComputedStyle(cover).rotate) || 0;
+    return at(r.left + r.width / 2, r.top + r.height / 2, deg * Math.PI / 180, cover.offsetWidth / w);
+  };
   cards.forEach((card, i) => {
-    card.style.transform = at(ox, oy, 0, os);
+    card.style.transform = home(i);
+    card.style.zIndex = n - i; // the first book lies on top, as in the stack
     const a = (i - (n - 1) / 2) * step;
     card.dataset.to = at(cx + R * Math.sin(a), cy + R * (1 - Math.cos(a)), a, 1);
     card.style.transitionDelay = `${i * 40}ms`;
   });
+  stackEl.classList.add('fanned'); // the cards are the stack now; the shelf copy hides until they return
   requestAnimationFrame(() => requestAnimationFrame(() => {
     el.classList.add('open');
     for (const card of cards) card.style.transform = card.dataset.to;
   }));
-  fan = { el, cards, origin, at };
+  fan = { el, cards, home, stack: () => stackEl };
 
   el.addEventListener('click', (e) => {
     const card = e.target.closest('.fan-card');
@@ -792,12 +814,17 @@ function openFan(stackEl) {
 
 function closeFan() {
   if (!fan) return;
-  const { el, cards, origin, at } = fan;
+  const { el, cards, home, stack } = fan;
   fan = null;
-  const [ox, oy, os] = origin();
   el.classList.remove('open');
-  cards.forEach((card, i) => { card.style.transitionDelay = `${(cards.length - 1 - i) * 25}ms`; card.style.transform = at(ox, oy, 0, os); });
-  setTimeout(() => el.remove(), 480);
+  el.classList.add('closing');
+  const last = (cards.length - 1) * 30;
+  cards.forEach((card, i) => { card.style.transitionDelay = `${last - i * 30}ms`; card.style.transform = home(i); });
+  // Hand back to the shelf only once every card has landed, so the stack never jumps mid-flight.
+  setTimeout(() => {
+    stack().classList.remove('fanned');
+    el.remove();
+  }, 460 + last);
 }
 
 /* ---------- book sheet ---------- */
@@ -1138,7 +1165,7 @@ function renderLocTags() {
   if (current && !names.includes(current)) names.push(current);
   const shown = token ? names : names.filter((n) => n === current);
   $('locTags').innerHTML = shown.map((n) =>
-    `<button type="button" class="chip${n === current ? ' on' : ''}" aria-pressed="${n === current}" data-loc="${esc(n)}">${esc(n)}</button>`).join('') +
+    `<button type="button" class="chip${n === current ? ' on' : ''}" aria-pressed="${n === current}" data-loc="${esc(n)}" data-color="${locColor(n)}">${esc(n)}</button>`).join('') +
     (token ? `<button type="button" class="chip chip-add" data-add>${PLUS}Новое место</button>` : '') +
     (!token && !current ? '<span class="tags-empty">не указано</span>' : '');
 }
