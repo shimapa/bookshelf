@@ -2,7 +2,7 @@
 
 const GKEY_KEY = 'bookshelf.googleKey';
 const LAST_LOC_KEY = 'bookshelf.lastLocation';
-const FIELDS = ['title', 'authors', 'publisher', 'year', 'location', 'notes'];
+const FIELDS = ['title', 'authors', 'publisher', 'year', 'location', 'notes', 'description'];
 const POLYFILL = 'https://cdn.jsdelivr.net/npm/barcode-detector@3.2.2/ponyfill/+esm';
 const collator = new Intl.Collator(['ru', 'en'], { sensitivity: 'base', numeric: true });
 
@@ -614,9 +614,19 @@ function openSheet(book, { isNew = false, fromScan = false, note = '', warn = fa
   $('saveBtn').textContent = isNew ? 'Добавить' : 'Сохранить';
   $('deleteBtn').hidden = isNew;
   $('saveNextBtn').hidden = !(isNew && fromScan);
+  $('aboutField').hidden = !token && !book.description;
   $('sheet').hidden = false;
+  $('sheet').querySelector('.sheet').scrollTop = 0;
+  for (const el of f.querySelectorAll('textarea')) fitTextarea(el);
   if (isNew && !book.title) f.elements.title.focus();
 }
+
+// Text areas grow with their content, so a description reads like text rather than a scroll box.
+function fitTextarea(el) {
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight + 2}px`;
+}
+$('bookForm').addEventListener('input', (e) => { if (e.target.tagName === 'TEXTAREA') fitTextarea(e.target); });
 
 function closeSheet() {
   $('sheet').hidden = true;
@@ -630,7 +640,10 @@ $('bookForm').addEventListener('submit', (e) => {
   const { isNew } = editing;
   // The list may have been refreshed while the sheet was open: edit the current copy of the book.
   const book = isNew ? editing.book : books.find((b) => b.id === editing.book.id) || editing.book;
-  for (const name of FIELDS) book[name] = f.elements[name].value.trim().replace(/\s+/g, ' ');
+  for (const name of FIELDS) {
+    const v = f.elements[name].value.trim();
+    book[name] = f.elements[name].tagName === 'TEXTAREA' ? v.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n') : v.replace(/\s+/g, ' ');
+  }
   if (editing.cover !== undefined) book.cover = editing.cover; // chosen in the cover picker
   // Reuse an existing location's spelling when only the case differs ("гостиная" → "Гостиная").
   const same = locations().find(([name]) => name.toLowerCase() === book.location.toLowerCase());

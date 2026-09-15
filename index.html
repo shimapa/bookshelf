@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://images.weserv.nl">
 <link rel="preconnect" href="https://covers.openlibrary.org">
 <link rel="dns-prefetch" href="https://archive.org">
-<link rel="stylesheet" href="app.css?v=17">
+<link rel="stylesheet" href="app.css?v=18">
 </head>
 <body>
 
@@ -27,7 +27,7 @@
     <button data-action="gkey" class="owner-only">Ключ Google Books API…</button>
     <button data-action="signin" class="visitor-only">Войти</button>
     <button data-action="signout" class="owner-only">Выйти</button>
-    <span class="version">Версия 17</span>
+    <span class="version">Версия 18</span>
   </div>
 </header>
 
@@ -84,6 +84,7 @@
       </div>
     </div>
     <div id="coverPicker" class="cover-picker" hidden></div>
+    <label id="aboutField" class="about">О книге <textarea name="description" rows="3" placeholder="Коротко, о чём книга"></textarea></label>
     <label>Название <input name="title" required></label>
     <label>Автор <input name="authors"></label>
     <div class="row">
@@ -138,6 +139,6 @@
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=17"></script>
+<script src="app.js?v=18"></script>
 </body>
 </html>
