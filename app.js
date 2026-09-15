@@ -19,12 +19,16 @@ const BOOK_FORMS = ['книга', 'книги', 'книг'];
 let locFilter = null; // null = all, '' = books without a location, otherwise a location name
 let catFilter = null; // null = all, otherwise a CATEGORIES key
 
-const CATEGORIES = { fiction: 'Художественная', nonfiction: 'Нон-фикшн' };
+const CATEGORIES = { fiction: 'Художественная', nonfiction: 'Нон-фикшн', kids: 'Детские' };
 
 // Chitai-gorod: its category path names fiction explicitly ("Художественная литература", also for children's books).
-const cgCategory = (chain = []) => chain.length < 2 ? '' : chain.some((c) => /художественная литература/i.test(c)) ? 'fiction' : 'nonfiction';
+const cgCategory = (chain = []) => chain.length < 2 ? ''
+  : chain.some((c) => /для детей|детская/i.test(c)) ? 'kids'
+  : chain.some((c) => /художественная литература/i.test(c)) ? 'fiction' : 'nonfiction';
 // Open Library / Google: only trust an explicit fiction-like subject; anything else stays for the owner to set.
-const subjectCategory = (subjects = []) => subjects.some((s) => /fiction|fantasy|novel|short stories|fairy tales/i.test(s)) ? 'fiction' : '';
+const subjectCategory = (subjects = []) =>
+  subjects.some((s) => /juvenile|children|picture books/i.test(s)) ? 'kids'
+  : subjects.some((s) => /fiction|fantasy|novel|short stories|fairy tales/i.test(s)) ? 'fiction' : '';
 
 /* ---------- storage ---------- */
 
@@ -502,6 +506,7 @@ function esc(s) {
 // Book-cloth colours for covers without an image; each title always gets the same one.
 const CLOTHS = ['#4f6150', '#3d5166', '#7d5236', '#74393a', '#8f6b2e', '#44464a', '#5e5170', '#2f5d50'];
 const PLUS_LARGE = '<svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M17 7v20M7 17h20" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+const BALLOON = '<svg class="kids-icon" width="26" height="34" viewBox="0 0 26 34" aria-hidden="true"><path d="M13 23c-5.5 0-10-4.9-10-10.5S7.5 2 13 2s10 4.9 10 10.5S18.5 23 13 23z" fill="#f08a5d"/><path d="M9 7.5c1-1.4 2.4-2.2 4-2.4" stroke="#fff" stroke-width="1.8" stroke-linecap="round" fill="none" opacity=".7"/><path d="M11.5 23h3l-1.5 2.2z" fill="#e0764a"/><path d="M13 25.2c-1.8 2 1.8 3.6 0 5.8" stroke="#6a88a8" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>';
 const STAR = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 .6l1.6 3.4 3.7.4-2.8 2.5.8 3.7L6 8.7 2.7 10.6l.8-3.7L.7 4.4l3.7-.4z"/></svg>';
 
 function clothCover(b) {
@@ -570,7 +575,7 @@ function locations() {
 const inCategory = (b) => catFilter === null || (b.category || '') === catFilter;
 
 function renderCategories() {
-  const counts = { fiction: 0, nonfiction: 0, '': 0 };
+  const counts = { fiction: 0, nonfiction: 0, kids: 0, '': 0 };
   for (const b of books) counts[b.category || ''] = (counts[b.category || ''] || 0) + 1;
   const seg = (value, label, n) => `<button class="seg${catFilter === value ? ' on' : ''}" data-cat="${value ?? '*'}">${label}${n === null ? '' : ` <span>${n}</span>`}</button>`;
   $('categories').hidden = books.length === 0;
@@ -578,6 +583,7 @@ function renderCategories() {
     seg(null, 'Все', null),
     seg('fiction', CATEGORIES.fiction, counts.fiction),
     seg('nonfiction', CATEGORIES.nonfiction, counts.nonfiction),
+    seg('kids', CATEGORIES.kids, counts.kids),
     counts[''] ? seg('', 'Без категории', counts['']) : '',
   ].join('');
 }
@@ -637,18 +643,26 @@ function render() {
       <span class="label"><span class="title">Добавить новую книгу</span></span>
     </button>` : '';
   // Two shelves: Russian books first, then other languages. Titles appear only when both shelves have books.
-  const russian = shown.filter(isRussian), other = shown.filter((b) => !isRussian(b));
+  // Children's books get their own shelf at the bottom; the rest split by language.
+  const grown = shown.filter((b) => b.category !== 'kids');
+  const russian = grown.filter(isRussian), other = grown.filter((b) => !isRussian(b));
+  const kids = shown.filter((b) => b.category === 'kids');
   const sections = [['На русском', russian], ['На других языках', other]].filter(([, list]) => list.length);
-  const titled = sections.length > 1;
+  const titled = sections.length > 1 || (sections.length && kids.length);
   let html;
-  if (!sections.length) {
+  const kidsShelf = kids.length ? `
+    <section class="shelf-section kids-section">
+      <h2 class="shelf-title kids-title">${BALLOON}Детская полка</h2>
+      <div class="shelf kids-shelf">${kids.map(bookHtml).join('')}${sections.length ? '' : addBook}</div>
+    </section>` : '';
+  if (!sections.length && !kids.length) {
     html = addBook ? `<div class="shelf">${addBook}</div>` : (books.length ? '<p class="empty">Ничего не найдено.</p>' : '');
   } else {
     html = sections.map(([title, list], i) => `
       <section class="shelf-section">
         ${titled ? `<h2 class="shelf-title">${title}</h2>` : ''}
         <div class="shelf">${list.map(bookHtml).join('')}${i === sections.length - 1 ? addBook : ''}</div>
-      </section>`).join('');
+      </section>`).join('') + kidsShelf;
   }
   // Re-creating the same markup would reload every cover (e.g. after a sync that changed nothing).
   if (html === renderedList) return;

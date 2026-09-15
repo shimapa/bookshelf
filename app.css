@@ -69,6 +69,30 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 .shelf-section + .shelf-section { margin-top: 48px; }
 .shelf-title { margin: 8px 0 2px; font-size: 18px; font-weight: 650; letter-spacing: -0.01em; }
 
+/* Children's shelf: a sky-blue room with sunny planks, rounder covers that lean a little, rounded type */
+.kids-section {
+  --bg: #e7f1fa;
+  --plank-top: #ffd36b;
+  --plank-face: #f2b33d;
+  margin-inline: -16px; padding: 22px 16px 36px;
+  background: var(--bg);
+  font-family: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+@media (min-width: 760px) { .kids-section { border-radius: 28px; } }
+.kids-section .shelf-title { display: flex; align-items: center; gap: 8px; color: #2e5b86; font-size: 20px; font-weight: 700; }
+.kids-icon { flex: none; margin-top: -6px; transform: rotate(-8deg); }
+.kids-shelf .cover { border-radius: 6px; }
+.kids-shelf .book:nth-child(4n+1) .cover { rotate: -1.6deg; }
+.kids-shelf .book:nth-child(4n+2) .cover { rotate: 1.1deg; }
+.kids-shelf .book:nth-child(4n+3) .cover { rotate: -0.6deg; }
+.kids-shelf .book:hover .cover, .kids-shelf .book:focus-visible .cover { rotate: 0deg; }
+.kids-shelf .cover { transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), rotate 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
+.kids-shelf .cloth { filter: saturate(1.35) brightness(1.1); }
+.kids-shelf .label .title { color: #1f3c58; }
+.kids-shelf .loc-tag { border-color: #c9dcef; color: #4b6d8f; background: rgb(255 255 255 / 0.6); }
+.kids-shelf .add-cover { background: #d3e3f2; color: #7d9bb9; }
+@media (prefers-reduced-motion: reduce) { .kids-shelf .book .cover { rotate: 0deg; } }
+
 /* Planks run edge to edge, so the shelf is clipped sideways to the page gutters. */
 .shelf { overflow-x: clip; margin-inline: -16px; padding-inline: 16px; }
 
@@ -147,6 +171,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 .segments::-webkit-scrollbar { display: none; }
 .seg { flex: none; border: 0; background: transparent; padding: 6px clamp(9px, 3vw, 14px); border-radius: 999px; font-size: 14px; color: var(--ink); cursor: pointer; white-space: nowrap; }
 .seg span { color: var(--muted); margin-left: 2px; font-variant-numeric: tabular-nums; }
+@media (max-width: 480px) { .seg { font-size: 13px; padding-inline: 8px; } .seg span { display: none; } } /* four options fit a phone without counts */
 .seg.on { background: var(--card); font-weight: 600; box-shadow: 0 1px 2px rgb(40 30 20 / 0.14); }
 .seg:not(.on):hover { background: rgb(255 255 255 / 0.5); }
 
