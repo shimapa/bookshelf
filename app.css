@@ -49,6 +49,67 @@ h1 { margin: 0; font-size: 26px; }
 .menu button:hover { background: var(--bg); }
 .version { color: var(--muted); font-size: 12px; padding: 6px 12px 4px; }
 
+/* Hero: the whole library on one long shelf, spines out */
+.hero { --hero-max: clamp(172px, 30vw, 230px); margin: 2px -16px 22px; position: relative; }
+.hero-shelf {
+  overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+  padding: 14px 16px 0;
+  /* the back of the bookcase darkens a little towards the plank; the plank runs the full width */
+  background:
+    linear-gradient(transparent calc(100% - 20px), var(--plank-top) calc(100% - 20px) calc(100% - 17px), var(--plank-face) calc(100% - 17px) calc(100% - 8px), #e3dccf calc(100% - 8px), var(--bg)),
+    linear-gradient(var(--bg), #efebe4 calc(100% - 20px));
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 40px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 40px), transparent);
+}
+.hero-shelf::-webkit-scrollbar { display: none; }
+.hero-track { display: flex; align-items: flex-end; width: max-content; min-height: var(--hero-max); padding: 0 40px 20px 0; }
+
+.spine {
+  --ink: #f5eee0; --gilt: rgb(226 196 128 / 0.85);
+  position: relative; flex: none; width: var(--w); height: calc(var(--hero-max) * var(--h));
+  margin-right: 1px; padding: 0; border: 0; border-radius: 2px 2px 1px 1px; cursor: pointer;
+  background-color: var(--spine);
+  /* rounded spine: shade at both edges, a soft highlight just off-centre */
+  background-image:
+    linear-gradient(90deg, rgb(0 0 0 / 0.28), rgb(0 0 0 / 0.04) 14%, rgb(255 255 255 / 0.16) 34%, rgb(255 255 255 / 0) 58%, rgb(0 0 0 / 0.08) 80%, rgb(0 0 0 / 0.3));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 -1px 0 rgb(0 0 0 / 0.06);
+  color: var(--ink); transform-origin: bottom center;
+  transition: translate 0.3s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s;
+}
+.spine.light { --ink: #2b241d; --gilt: rgb(96 70 38 / 0.55); }
+/* ornaments, picked per book: gilt rules at head and tail, a dark title label, a tail band, or a plain cloth */
+.spine::before, .spine::after { content: ''; position: absolute; left: 3px; right: 3px; pointer-events: none; }
+.spine[data-v="0"]::before { top: 4%; height: 4px; border-block: 1px solid var(--gilt); }
+.spine[data-v="0"]::after { bottom: 4%; height: 4px; border-block: 1px solid var(--gilt); }
+.spine[data-v="1"]::before { top: 14%; bottom: 30%; left: 2px; right: 2px; background: rgb(0 0 0 / 0.22); box-shadow: inset 0 0 0 1px var(--gilt); border-radius: 1px; }
+.spine[data-v="2"]::after { bottom: 0; left: 0; right: 0; height: 9%; background: rgb(0 0 0 / 0.2); border-top: 1px solid var(--gilt); }
+.spine[data-v="3"]::before { top: 3.5%; left: 50%; right: auto; width: 5px; height: 5px; margin-left: -2.5px; rotate: 45deg; background: var(--gilt); }
+
+.spine-text {
+  position: absolute; inset: 9% 0 11%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  writing-mode: vertical-rl; overflow: hidden;
+}
+/* Russian spines read bottom to top, English ones top to bottom */
+.spine[data-dir="up"] .spine-text { rotate: 180deg; }
+.spine[data-v="1"] .spine-text { inset: 16% 0 31%; justify-content: center; }
+.spine-title {
+  font: 400 12px/1.05 Prata, Georgia, serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 0;
+  text-shadow: 0 1px 0 rgb(0 0 0 / 0.15);
+}
+.spine.light .spine-title { text-shadow: none; }
+.spine-author { flex: none; font: 500 8.5px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.72; white-space: nowrap; max-height: 40%; overflow: hidden; text-overflow: ellipsis; }
+.spine[data-v="1"] .spine-author { display: none; }
+@media (hover: hover) { .spine:hover { translate: 0 -9px; filter: brightness(1.06); } }
+.spine:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; translate: 0 -9px; }
+.bookend { flex: none; align-self: flex-end; width: 22px; height: 58px; margin: 0 6px; border-radius: 3px 10px 0 0; background: linear-gradient(90deg, #3a3631, #57514a 40%, #2e2a26); box-shadow: 2px 0 4px rgb(0 0 0 / 0.18); }
+/* The very last book leans on its neighbour */
+.hero-track > .spine:last-child { rotate: -9deg; transform-origin: bottom left; margin-left: calc(var(--hero-max) * var(--h) * 0.156 + 1px); } /* sin 9° × height: its top just touches the neighbour */
+@media (hover: hover) { .hero-track > .spine:last-child:hover { translate: 0 -9px; } }
+/* On first load the books slide down onto the shelf one after another */
+.hero.intro .spine { animation: spine-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) both; animation-delay: calc(min(var(--i), 40) * 18ms); }
+@keyframes spine-in { from { opacity: 0; translate: 0 -18px; } }
+@media (prefers-reduced-motion: reduce) { .hero.intro .spine { animation: none; } .spine { transition: none; } }
+
 /* Search + sort */
 .tools { display: flex; gap: 8px; margin-bottom: 12px; }
 .tools input, .tools select, .isbn-form input, .sheet input, .sheet textarea {

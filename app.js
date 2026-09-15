@@ -662,6 +662,7 @@ function renderLocations() {
 }
 
 function render() {
+  renderHero();
   renderCategories();
   renderLocations();
   const q = $('search').value.trim().toLowerCase();
@@ -753,6 +754,143 @@ function render() {
 }
 let renderedList = null;
 const stacks = new Map(); // series key → { name, books } for the stacks on screen
+
+/* ---------- hero: the whole library, spines out ---------- */
+
+// Every book stands on one long shelf with its spine facing out. Spines are drawn, not photographed:
+// the colour comes from the cover, size and ornament from the title, so each book keeps its own look.
+const SPINE_KEY = 'bookshelf.spineColors';
+const spineColors = new Map(Object.entries(readJson(SPINE_KEY, {})));
+let heroHtml = null, heroIntro = true;
+
+function hashOf(text = '') {
+  let h = 2166136261;
+  for (const ch of text) h = Math.imul(h ^ ch.codePointAt(0), 16777619) >>> 0;
+  return h;
+}
+
+// Cloth colour for books whose cover colour isn't known (yet), as [hue, saturation, lightness].
+function clothHsl(b) {
+  const hex = CLOTHS[[...(b.title || '')].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 0) % CLOTHS.length];
+  const [r, g, bl] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  return rgbToHsl(r, g, bl);
+}
+
+function rgbToHsl(r, g, b) {
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+  if (!d) return [0, 0, l];
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h = max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+
+function spineStyle(b) {
+  const [h, sat, l] = spineColors.get(b.cover) || clothHsl(b);
+  const hash = hashOf(b.id + b.title);
+  const kids = b.category === 'kids';
+  const height = kids ? 0.66 + ((hash >> 3) % 22) / 100 : 0.8 + ((hash >> 3) % 21) / 100;
+  const width = (kids ? 20 : 24) + (hash >> 9) % (kids ? 10 : 15);
+  const light = l > 0.56;
+  return { style: `--spine:hsl(${h.toFixed(0)} ${(sat * 100).toFixed(0)}% ${(l * 100).toFixed(0)}%);--h:${height.toFixed(2)};--w:${width}px`, variant: hash % 4, light, wide: width >= 32 };
+}
+
+// A spine carries the short title: no subtitle, no edition note in brackets.
+function spineTitle(title = '') {
+  let t = title.replace(/\s*[(\[].*?[)\]]/g, '').split(/:\s|\s[—–]\s/)[0].trim();
+  const dot = t.indexOf('. ');
+  if (t.length > 28 && dot >= 5) t = t.slice(0, dot); // "Номер 1. Как стать лучшим…" → "Номер 1"
+  return t.replace(/\.$/, '') || title;
+}
+
+function spineHtml(b, i) {
+  const { style, variant, light, wide } = spineStyle(b);
+  // Only wide spines have room for the author next to the title.
+  const surname = !wide ? '' : (b.authors || '').split(',')[0].trim().split(/\s+/).pop() || '';
+  return `<button class="spine${light ? ' light' : ''}" data-id="${esc(b.id)}" data-v="${variant}" data-dir="${isRussian(b) ? 'up' : 'down'}" style="${style};--i:${i}" aria-label="${esc(b.title)}">` +
+    `<span class="spine-text"><span class="spine-title">${esc(spineTitle(b.title))}</span>${surname ? `<span class="spine-author">${esc(surname)}</span>` : ''}</span></button>`;
+}
+
+function renderHero() {
+  const hero = $('hero');
+  if (!books.length) { hero.hidden = true; return; }
+  const pub = (b) => publisherName(b.publisher) || '￿';
+  const order = (a, b) => collator.compare(pub(a), pub(b)) || collator.compare(a.authors || '￿', b.authors || '￿') || collator.compare(a.title, b.title);
+  const all = [...books].sort(order);
+  const groups = [all.filter((b) => b.category !== 'kids' && isRussian(b)), all.filter((b) => b.category !== 'kids' && !isRussian(b)), all.filter((b) => b.category === 'kids')]
+    .filter((g) => g.length);
+  let i = 0;
+  // A bookend stands between the Russian, other-language and children's books.
+  const html = groups.map((g) => g.map((b) => spineHtml(b, i++)).join('')).join('<span class="bookend" aria-hidden="true"></span>');
+  hero.hidden = false;
+  if (html === heroHtml) return;
+  heroHtml = html;
+  $('heroTrack').innerHTML = html;
+  hero.classList.toggle('intro', heroIntro);
+  if (heroIntro) setTimeout(() => hero.classList.remove('intro'), 1600);
+  heroIntro = false;
+  sampleSpineColors();
+}
+
+$('heroTrack').addEventListener('click', (e) => {
+  const spine = e.target.closest('.spine');
+  if (spine) openSheet(books.find((b) => b.id === spine.dataset.id));
+});
+
+// Cover colours are read from a tiny copy of each cover (the image proxy allows canvas access), a few at a time,
+// and remembered, so spines come up in their colours right away next time.
+let sampling = false;
+async function sampleSpineColors() {
+  if (sampling) return;
+  sampling = true;
+  try {
+    const todo = books.filter((b) => b.cover && !spineColors.has(b.cover) && !localPhotos.has(b.cover));
+    const worker = async () => {
+      for (let b; (b = todo.shift());) {
+        const hsl = await coverColor(b.cover);
+        if (!hsl) continue;
+        spineColors.set(b.cover, hsl.map((v) => +v.toFixed(3)));
+        for (const el of document.querySelectorAll(`.spine[data-id="${CSS.escape(b.id)}"]`)) {
+          const { style, light } = spineStyle(b);
+          el.style.cssText = `${style};--i:${el.style.getPropertyValue('--i')}`;
+          el.classList.toggle('light', light);
+        }
+      }
+    };
+    await Promise.all([worker(), worker(), worker(), worker()]);
+    heroHtml = null; // markup now carries the sampled colours
+    try { localStorage.setItem(SPINE_KEY, JSON.stringify(Object.fromEntries([...spineColors].slice(-500)))); } catch { /* storage full */ }
+  } finally {
+    sampling = false;
+  }
+}
+
+async function coverColor(url) {
+  try {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = `${IMG_PROXY}${encodeURIComponent(url)}&w=16&h=24&fit=cover`;
+    await Promise.race([img.decode(), new Promise((_, no) => setTimeout(no, 10000))]);
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const { data } = ctx.getImageData(0, 0, c.width, c.height);
+    // The cover's character colour: pixels weigh more the more colourful they are, so a white title or
+    // a black outline doesn't turn every spine grey. Hue is averaged on the colour wheel.
+    let x = 0, y = 0, sw = 0, lw = 0, weight = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const [h, sat, l] = rgbToHsl(data[i] / 255, data[i + 1] / 255, data[i + 2] / 255);
+      const w = 0.08 + sat * (1 - Math.abs(2 * l - 1));
+      x += Math.cos(h * Math.PI / 180) * w; y += Math.sin(h * Math.PI / 180) * w;
+      sw += sat * w; lw += l * w; weight += w;
+    }
+    const hue = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+    // Bookcloth, not neon: saturation is capped and lightness kept in a range that still reads as a binding.
+    return [hue, Math.min(0.66, (sw / weight) * 1.2), Math.min(0.64, Math.max(0.2, lw / weight))];
+  } catch {
+    return null;
+  }
+}
 
 /* ---------- series fan ---------- */
 

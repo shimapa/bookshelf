@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pacifico&family=Prata&display=swap">
-<link rel="stylesheet" href="app.css?v=38">
+<link rel="stylesheet" href="app.css?v=39">
 </head>
 <body>
 
@@ -32,9 +32,13 @@
     <button data-action="gkey" class="owner-only">Ключ Google Books API…</button>
     <button data-action="signin" class="visitor-only">Войти</button>
     <button data-action="signout" class="owner-only">Выйти</button>
-    <span class="version">Версия 38</span>
+    <span class="version">Версия 39</span>
   </div>
 </header>
+
+<section id="hero" class="hero" aria-label="Все книги корешками" hidden>
+  <div class="hero-shelf"><div id="heroTrack" class="hero-track"></div></div>
+</section>
 
 <div class="tools">
   <input id="search" type="search" placeholder="Поиск книг" autocomplete="off">
@@ -204,6 +208,6 @@
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=38"></script>
+<script src="app.js?v=39"></script>
 </body>
 </html>
