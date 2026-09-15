@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://images.weserv.nl">
 <link rel="preconnect" href="https://covers.openlibrary.org">
 <link rel="dns-prefetch" href="https://archive.org">
-<link rel="stylesheet" href="app.css?v=22">
+<link rel="stylesheet" href="app.css?v=23">
 </head>
 <body>
 
@@ -27,7 +27,7 @@
     <button data-action="gkey" class="owner-only">Ключ Google Books API…</button>
     <button data-action="signin" class="visitor-only">Войти</button>
     <button data-action="signout" class="owner-only">Выйти</button>
-    <span class="version">Версия 22</span>
+    <span class="version">Версия 23</span>
   </div>
 </header>
 
@@ -138,6 +138,25 @@
   </form>
 </div>
 
+<!-- Crop a cover photo before upload -->
+<div id="cropper" class="cropper" hidden>
+  <p class="crop-hint">Подгоните рамку по краям обложки</p>
+  <div id="cropStage" class="crop-stage">
+    <div id="cropArea" class="crop-area">
+      <img id="cropImg" alt="">
+      <div id="cropBox" class="crop-box">
+        <span class="crop-h" data-h="nw"></span><span class="crop-h" data-h="ne"></span>
+        <span class="crop-h" data-h="sw"></span><span class="crop-h" data-h="se"></span>
+      </div>
+    </div>
+  </div>
+  <div class="crop-bar">
+    <button type="button" id="cropCancel" class="btn">Отмена</button>
+    <button type="button" id="cropReset" class="btn">Сбросить</button>
+    <button type="button" id="cropDone" class="btn primary">Готово</button>
+  </div>
+</div>
+
 <!-- Full-screen cover -->
 <div id="lightbox" class="lightbox" hidden>
   <img id="lightboxImg" alt="Обложка">
@@ -147,6 +166,6 @@
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=22"></script>
+<script src="app.js?v=23"></script>
 </body>
 </html>

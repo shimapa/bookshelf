@@ -703,9 +703,16 @@ $('photoInput').addEventListener('change', async (e) => {
   e.target.value = '';
   if (!file || !editing || !token) return;
   const sheetBook = editing.book;
+  let dataUrl;
+  try {
+    dataUrl = await cropPhoto(file);
+  } catch {
+    toast('Не удалось открыть фото', 3000);
+    return;
+  }
+  if (!dataUrl) return; // crop cancelled
   toast('Загружаю фото…', 0);
   try {
-    const dataUrl = await coverFromPhoto(file);
     const name = `covers/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
     await github(`contents/${name}`, {
       method: 'PUT',
@@ -721,29 +728,92 @@ $('photoInput').addEventListener('change', async (e) => {
     }
     toast('Фото загружено — нажмите «Сохранить»', 3000);
   } catch (err) {
-    toast(err.status ? 'Не удалось сохранить фото в GitHub' : 'Не удалось обработать фото', 3500);
+    toast('Не удалось сохранить фото в GitHub', 3500);
   }
 });
 
-// Crops the photo to the shelf's 2:3 cover shape (centred) and scales it to 600×900 JPEG, ~80 KB.
-async function coverFromPhoto(file) {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = new Image();
-    img.src = url;
-    await img.decode(); // browsers apply the photo's EXIF rotation when decoding into an <img>
-    const W = 600, H = 900;
-    const scale = Math.max(W / img.naturalWidth, H / img.naturalHeight);
-    const sw = W / scale, sh = H / scale;
-    const canvas = document.createElement('canvas');
-    canvas.width = W;
-    canvas.height = H;
-    canvas.getContext('2d').drawImage(img, (img.naturalWidth - sw) / 2, (img.naturalHeight - sh) / 2, sw, sh, 0, 0, W, H);
-    return canvas.toDataURL('image/jpeg', 0.85);
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+/* ---------- photo crop ---------- */
+
+// Full-screen crop step between taking a photo and uploading it. The frame is kept in the photo's own
+// pixels, so it survives rotating the phone; drag inside to move it, drag a corner to resize.
+let crop = null; // { img, box: {x, y, w, h}, scale, done(result) }
+
+function cropPhoto(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = $('cropImg');
+    img.onload = () => {
+      const W = img.naturalWidth, H = img.naturalHeight;
+      crop = { W, H, box: initialCropBox(W, H), done: (result) => { URL.revokeObjectURL(url); crop = null; $('cropper').hidden = true; resolve(result); } };
+      $('cropper').hidden = false;
+      layoutCrop();
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode')); };
+    img.src = url; // browsers apply the photo's EXIF rotation when displaying it
+  });
 }
+
+// A centred 2:3 frame covering most of the photo — the usual shape of a book cover.
+function initialCropBox(W, H) {
+  let h = H * 0.86, w = h * 2 / 3;
+  if (w > W * 0.86) { w = W * 0.86; h = w * 1.5; }
+  return { x: (W - w) / 2, y: (H - h) / 2, w, h };
+}
+
+function layoutCrop() {
+  if (!crop) return;
+  const stage = $('cropStage').getBoundingClientRect();
+  crop.scale = Math.min(stage.width / crop.W, stage.height / crop.H);
+  const area = $('cropArea');
+  area.style.width = `${crop.W * crop.scale}px`;
+  area.style.height = `${crop.H * crop.scale}px`;
+  const { x, y, w, h } = crop.box, k = crop.scale;
+  Object.assign($('cropBox').style, { left: `${x * k}px`, top: `${y * k}px`, width: `${w * k}px`, height: `${h * k}px` });
+}
+window.addEventListener('resize', layoutCrop);
+
+$('cropBox').addEventListener('pointerdown', (e) => {
+  if (!crop) return;
+  e.preventDefault();
+  const handle = e.target.dataset.h || 'move';
+  const start = { px: e.clientX, py: e.clientY, ...crop.box };
+  const min = 60 / crop.scale; // keep the frame at least 60 screen px
+  const move = (ev) => {
+    const dx = (ev.clientX - start.px) / crop.scale, dy = (ev.clientY - start.py) / crop.scale;
+    let { x, y, w, h } = start;
+    if (handle === 'move') {
+      x = Math.min(Math.max(0, x + dx), crop.W - w);
+      y = Math.min(Math.max(0, y + dy), crop.H - h);
+    } else {
+      let left = x, top = y, right = x + w, bottom = y + h;
+      if (handle.includes('w')) left = Math.min(Math.max(0, left + dx), right - min);
+      if (handle.includes('e')) right = Math.max(Math.min(crop.W, right + dx), left + min);
+      if (handle.includes('n')) top = Math.min(Math.max(0, top + dy), bottom - min);
+      if (handle.includes('s')) bottom = Math.max(Math.min(crop.H, bottom + dy), top + min);
+      x = left; y = top; w = right - left; h = bottom - top;
+    }
+    crop.box = { x, y, w, h };
+    layoutCrop();
+  };
+  const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up); };
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+  window.addEventListener('pointercancel', up);
+});
+
+$('cropReset').addEventListener('click', () => { if (crop) { crop.box = initialCropBox(crop.W, crop.H); layoutCrop(); } });
+$('cropCancel').addEventListener('click', () => crop?.done(null));
+// The chosen area, scaled so its longer side is at most 900 px, as JPEG (~80 KB).
+$('cropDone').addEventListener('click', () => {
+  if (!crop) return;
+  const { x, y, w, h } = crop.box;
+  const k = Math.min(1, 900 / Math.max(w, h));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(w * k);
+  canvas.height = Math.round(h * k);
+  canvas.getContext('2d').drawImage($('cropImg'), x, y, w, h, 0, 0, canvas.width, canvas.height);
+  crop.done(canvas.toDataURL('image/jpeg', 0.85));
+});
 
 /* ---------- full-screen cover ---------- */
 
@@ -1238,7 +1308,8 @@ $('locations').addEventListener('click', (e) => {
 $('sort').addEventListener('change', render);
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
-  if (!$('lightbox').hidden) $('lightbox').hidden = true;
+  if (crop) crop.done(null);
+  else if (!$('lightbox').hidden) $('lightbox').hidden = true;
   else if (!$('scanner').hidden) stopScanner();
   else if (!$('results').hidden) { $('results').hidden = true; searchRun++; }
   else if (!$('sheet').hidden) closeSheet();
