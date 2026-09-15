@@ -65,25 +65,19 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
   align-items: start;
   padding-top: 12px;
 }
-/* Grouped view: one titled shelf per publisher */
-.group + .group { margin-top: 40px; }
-.group-title {
-  display: flex; align-items: baseline; gap: 8px; margin: 12px 0 4px;
-  font-size: 17px; font-weight: 650; letter-spacing: -0.01em;
-}
-.group-title span { font-size: 13px; font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Planks run edge to edge, so the shelf is clipped sideways to the page gutters. */
+.shelf { overflow-x: clip; margin-inline: -16px; padding-inline: 16px; }
 
 .book {
   display: flex; flex-direction: column; min-width: 0;
   background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: inherit;
 }
 .book .stand { position: relative; padding-bottom: 12px; }
-/* The plank: runs under the whole row by bleeding into the column gaps. */
+/* The plank: every book draws it across the full width, so a row is one continuous board even with a
+   single book. Its shadow is painted in opaque colours fading into the page, so overlapping planks don't darken. */
 .book .stand::after {
-  content: ''; position: absolute; bottom: 0; height: 12px;
-  left: calc(var(--gap) / -2); right: calc(var(--gap) / -2);
-  background: linear-gradient(var(--plank-top) 0 3px, var(--plank-face) 3px);
-  box-shadow: 0 10px 12px -10px rgb(70 52 28 / 0.45);
+  content: ''; position: absolute; bottom: -10px; height: 22px; left: -100vw; right: -100vw; pointer-events: none;
+  background: linear-gradient(var(--plank-top) 0 3px, var(--plank-face) 3px 12px, #e3dccf 12px, var(--bg) 22px);
 }
 .cover {
   position: relative; display: block; aspect-ratio: 2 / 3; border-radius: 1px 3px 3px 1px; overflow: hidden;
@@ -114,6 +108,11 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 .book:focus-visible { outline: none; }
 .book:focus-visible .cover { outline: 2px solid var(--accent); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { .cover, .cover img { transition: none; } }
+
+/* Placeholder book at the end of the owner's shelf */
+.add-cover { display: grid; place-items: center; background: #e2ded6; color: #a39d92; }
+.add-book:hover .add-cover, .add-book:focus-visible .add-cover { color: var(--accent); }
+.add-book .title { font-weight: 500; color: var(--muted); }
 
 /* Books without a cover image get a cloth binding with the title stamped on it. */
 .cloth {

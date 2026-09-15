@@ -501,6 +501,7 @@ function esc(s) {
 
 // Book-cloth colours for covers without an image; each title always gets the same one.
 const CLOTHS = ['#4f6150', '#3d5166', '#7d5236', '#74393a', '#8f6b2e', '#44464a', '#5e5170', '#2f5d50'];
+const PLUS_LARGE = '<svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M17 7v20M7 17h20" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
 const STAR = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 .6l1.6 3.4 3.7.4-2.8 2.5.8 3.7L6 8.7 2.7 10.6l.8-3.7L.7 4.4l3.7-.4z"/></svg>';
 
 function clothCover(b) {
@@ -603,7 +604,11 @@ function render() {
     (locFilter === null || (b.location || '') === locFilter) &&
     (!q || [b.title, b.authors, b.isbn, b.publisher, b.location, b.notes].some((f) => (f || '').toLowerCase().includes(q))));
 
-  if (sort === 'publisher') shown.sort((a, b) => collator.compare(a.authors || '￿', b.authors || '￿') || collator.compare(a.title, b.title));
+  if (sort === 'publisher') {
+    // Books stand in publisher order (then author, then title); books without a publisher go last.
+    const pub = (b) => publisherName(b.publisher) || '￿';
+    shown.sort((a, b) => collator.compare(pub(a), pub(b)) || collator.compare(a.authors || '￿', b.authors || '￿') || collator.compare(a.title, b.title));
+  }
   else if (sort === 'title') shown.sort((a, b) => collator.compare(a.title, b.title));
   else if (sort === 'rating') shown.sort((a, b) => (b.rating || 0) - (a.rating || 0) || collator.compare(a.title, b.title));
   else if (sort === 'author') shown.sort((a, b) => collator.compare(a.authors || '￿', b.authors || '￿') || collator.compare(a.title, b.title));
@@ -622,26 +627,15 @@ function render() {
         ${b.location && locFilter === null ? `<span class="loc-tag">${esc(b.location)}</span>` : ''}
       </span>
     </button>`;
-  const shelf = (list) => `<div class="shelf">${list.map(bookHtml).join('')}</div>`;
-  let html;
-  if (!shown.length) {
-    html = books.length ? '<p class="empty">Ничего не найдено.</p>' : '';
-  } else if (sort === 'publisher') {
-    // One shelf per publisher, alphabetically; books without a publisher go last.
-    const groups = new Map();
-    for (const b of shown) {
-      const name = publisherName(b.publisher);
-      if (!groups.has(name)) groups.set(name, []);
-      groups.get(name).push(b);
-    }
-    html = [...groups].sort(([a], [b]) => (!a) - (!b) || collator.compare(a, b)).map(([name, list]) => `
-      <section class="group">
-        <h2 class="group-title">${esc(name || 'Издательство не указано')} <span>${list.length}</span></h2>
-        ${shelf(list)}
-      </section>`).join('');
-  } else {
-    html = shelf(shown);
-  }
+  // The owner's shelf ends with a grey placeholder book for adding a new one (not while searching).
+  const addBook = token && !q ? `
+    <button class="book add-book" data-add-book>
+      <span class="stand"><span class="cover add-cover">${PLUS_LARGE}</span></span>
+      <span class="label"><span class="title">Добавить новую книгу</span></span>
+    </button>` : '';
+  const html = shown.length || addBook
+    ? `<div class="shelf">${shown.map(bookHtml).join('')}${addBook}</div>`
+    : (books.length ? '<p class="empty">Ничего не найдено.</p>' : '');
   // Re-creating the same markup would reload every cover (e.g. after a sync that changed nothing).
   if (html === renderedList) return;
   renderedList = html;
@@ -736,7 +730,9 @@ $('deleteBtn').addEventListener('click', () => {
 });
 $('list').addEventListener('click', (e) => {
   const el = e.target.closest('.book');
-  if (el) openSheet(books.find((b) => b.id === el.dataset.id));
+  if (!el) return;
+  if ('addBook' in el.dataset) startScanner();
+  else openSheet(books.find((b) => b.id === el.dataset.id));
 });
 
 /* ---------- cover picker ---------- */
