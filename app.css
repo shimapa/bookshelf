@@ -212,7 +212,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 }
 
 /* Title search results */
-.results { display: flex; flex-direction: column; margin: 0 -16px; max-height: min(62vh, 560px); overflow-y: auto; overscroll-behavior: contain; }
+.results { display: flex; flex-direction: column; margin: 0 -16px; max-height: min(62vh, 560px); max-height: min(62dvh, 560px); overflow-y: auto; overscroll-behavior: contain; }
 .result { display: flex; gap: 14px; align-items: center; padding: 10px 16px; background: none; border: 0; text-align: left; cursor: pointer; color: inherit; }
 .result:hover, .result:focus-visible { background: var(--bg); outline: none; }
 .result.loading { opacity: 0.55; cursor: progress; }
@@ -225,9 +225,13 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 .results-state { margin: 0; padding: 20px 16px; color: var(--muted); }
 
 /* Sheet */
-.sheet-wrap { position: fixed; inset: 0; z-index: 20; background: rgb(0 0 0 / 0.4); display: flex; align-items: flex-end; justify-content: center; }
+.sheet-wrap { position: fixed; inset: 0; z-index: 20; background: rgb(0 0 0 / 0.4); display: flex; align-items: flex-end; justify-content: center; overscroll-behavior: contain; }
+/* While a card or the scanner is open the shelf behind stays put, so a swipe scrolls the card, not the page. */
+html:has(.sheet-wrap:not([hidden])), html:has(.scanner:not([hidden])) { overflow: hidden; }
 .sheet {
-  background: var(--card); width: 100%; max-width: 560px; max-height: 92vh; overflow: auto;
+  background: var(--card); width: 100%; max-width: 560px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  /* dvh = the part of the screen actually visible between Safari's toolbars; vh is the fallback */
+  max-height: 92vh; max-height: 92dvh;
   border-radius: 16px 16px 0 0; padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
   display: flex; flex-direction: column; gap: 10px;
 }
