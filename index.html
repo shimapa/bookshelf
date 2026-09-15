@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://images.weserv.nl">
 <link rel="preconnect" href="https://covers.openlibrary.org">
 <link rel="dns-prefetch" href="https://archive.org">
-<link rel="stylesheet" href="app.css?v=33">
+<link rel="stylesheet" href="app.css?v=34">
 </head>
 <body>
 
@@ -29,7 +29,7 @@
     <button data-action="gkey" class="owner-only">Ключ Google Books API…</button>
     <button data-action="signin" class="visitor-only">Войти</button>
     <button data-action="signout" class="owner-only">Выйти</button>
-    <span class="version">Версия 33</span>
+    <span class="version">Версия 34</span>
   </div>
 </header>
 
@@ -52,15 +52,31 @@
 
 <div id="empty" class="empty" hidden>
   <p class="empty-title">Пока нет книг</p>
-  <p class="empty-hint">Нажмите <b>Сканировать</b> и наведите камеру на штрихкод на обороте книги или введите название.</p>
+  <p class="empty-hint">Нажмите <b>+</b> внизу слева, чтобы отсканировать книгу или добавить её вручную.</p>
 </div>
 
-<div class="bar owner-only">
-  <form id="isbnForm" class="isbn-form">
-    <input id="isbnInput" placeholder="ISBN или название" enterkeyhint="search" autocomplete="off">
-    <button type="submit" class="btn">Добавить</button>
-  </form>
-  <button id="scanBtn" class="btn primary">Сканировать</button>
+<button id="addFab" class="fab owner-only" aria-label="Добавить книгу"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path d="M13 5v16M5 13h16" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></button>
+
+<!-- Add a book -->
+<div id="addSheet" class="sheet-wrap" hidden>
+  <div class="sheet add-sheet">
+    <div id="addHero" class="add-hero" aria-hidden="true"></div>
+    <h2 class="add-title">Добавить книгу</h2>
+    <button type="button" id="addScan" class="add-option add-primary">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M4 9V6a2 2 0 0 1 2-2h3M21 4h3a2 2 0 0 1 2 2v3M26 21v3a2 2 0 0 1-2 2h-3M9 26H6a2 2 0 0 1-2-2v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 10v10M12 10v10M15.5 10v10M18 10v10M21 10v10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <span><b>Сканировать ISBN или штрихкод</b><small>Наведите камеру на обратную сторону книги</small></span>
+    </button>
+    <button type="button" id="addManual" class="add-option">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M7 23l1.2-4.6L19.6 7a2.4 2.4 0 0 1 3.4 3.4L11.6 21.8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M17.5 9.2l3.3 3.3" stroke="currentColor" stroke-width="2"/></svg>
+      <span><b>Добавить вручную</b><small>По ISBN, названию или с чистого листа</small></span>
+    </button>
+    <form id="isbnForm" class="isbn-form" hidden>
+      <input id="isbnInput" placeholder="ISBN или название" enterkeyhint="search" autocomplete="off">
+      <button type="submit" class="btn primary">Найти</button>
+    </form>
+    <button type="button" id="addBlank" class="link-btn add-blank" hidden>Заполнить карточку без поиска</button>
+    <div class="sheet-actions"><span class="spacer"></span><button type="button" id="addClose" class="btn">Отмена</button></div>
+  </div>
 </div>
 
 <!-- Camera scanner -->
@@ -180,6 +196,6 @@
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=33"></script>
+<script src="app.js?v=34"></script>
 </body>
 </html>

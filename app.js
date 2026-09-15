@@ -444,8 +444,7 @@ function isbnCoverUrls(isbn) {
     // Amazon serves a 1×1 GIF when it has no cover.
     urls.push({ url: `https://images-na.ssl-images-amazon.com/images/P/${body}${check === 10 ? 'X' : check}.01.LZZZZZZZ.jpg` });
   }
-  // Google serves a 128×170 "image not available" PNG when it has no cover. It matches Russian ISBNs to the wrong books.
-  if (!isbn.startsWith('9785')) urls.push({ url: `https://books.google.com/books/content?vid=ISBN${isbn}&printsec=frontcover&img=1&zoom=1`, placeholder: [128, 170] });
+  // No Google Books images: its "no cover" placeholder is now a normal-looking JPEG and it mixes up Russian ISBNs.
   return urls;
 }
 
@@ -533,7 +532,31 @@ function coverInner(b, lazy = true) {
 
 // Images fire load/error without bubbling: listen in the capture phase on the whole document.
 // A cover that arrives late fades in; a broken one is removed so the cloth binding shows.
-document.addEventListener('load', (e) => { if (e.target.matches?.('.cover img:not(.instant)')) e.target.classList.add('loaded'); }, true);
+document.addEventListener('load', (e) => {
+  const img = e.target;
+  if (!img.matches?.('.cover img')) return;
+  if (!img.classList.contains('instant')) img.classList.add('loaded');
+  if (img.closest('.kids-shelf .book:not(.stack)')) fitKidsCover(img);
+}, true);
+
+// Children's books come in every shape: on their shelf a cover keeps its real proportions inside the 2:3 slot.
+// Ratios are remembered so the shelf lays out right away next time.
+const RATIO_KEY = 'bookshelf.coverRatios';
+const coverRatios = new Map(Object.entries(readJson(RATIO_KEY, {})));
+function fitKidsCover(img) {
+  const ratio = +(img.naturalWidth / img.naturalHeight).toFixed(3);
+  if (!ratio) return;
+  const key = img.dataset.fallback || img.getAttribute('src');
+  if (coverRatios.get(key) !== ratio) {
+    coverRatios.set(key, ratio);
+    try { localStorage.setItem(RATIO_KEY, JSON.stringify(Object.fromEntries([...coverRatios].slice(-400)))); } catch { /* storage full */ }
+  }
+  img.closest('.cover').style.setProperty('--ar', ratio);
+}
+const kidsRatio = (b) => {
+  const r = b.cover && coverRatios.get(b.cover);
+  return r ? ` style="--ar:${r}"` : '';
+};
 document.addEventListener('error', (e) => {
   const img = e.target;
   if (!img.matches?.('.cover img')) return;
@@ -647,9 +670,9 @@ function render() {
   $('count').textContent = books.length ? `${books.length} ${plural(books.length, BOOK_FORMS)}` : '';
   $('empty').hidden = books.length > 0;
   let index = 0;
-  const bookHtml = (b) => `
+  const bookHtml = (b, kids = false) => `
     <button class="book" data-id="${esc(b.id)}">
-      <span class="stand"><span class="cover">${coverInner(b, index++ >= 12)}</span></span>
+      <span class="stand"><span class="cover"${kids ? kidsRatio(b) : ''}>${coverInner(b, index++ >= 12)}</span></span>
       <span class="label">
         <span class="title">${esc(b.title)}</span>
         <span class="sub">${esc(b.authors || b.year || '')}</span>
@@ -659,13 +682,13 @@ function render() {
     </button>`;
   // Two or more visible books of one series stand as a single stack where the first of them would be.
   stacks.clear();
-  const withStacks = (list) => {
+  const withStacks = (list, kids = false) => {
     const groups = new Map();
     for (const b of list) if (b.series) { const k = seriesKey(b.series); groups.set(k, [...(groups.get(k) || []), b]); }
     const done = new Set();
     return list.map((b) => {
       const k = b.series && seriesKey(b.series);
-      if (!k || groups.get(k).length < 2) return bookHtml(b);
+      if (!k || groups.get(k).length < 2) return bookHtml(b, kids);
       if (done.has(k)) return '';
       done.add(k);
       const members = groups.get(k).sort(seriesOrder);
@@ -698,7 +721,7 @@ function render() {
   const kidsShelf = kids.length ? `
     <section class="shelf-section kids-section">
       <h2 class="shelf-title kids-title">${BALLOON}Полка Феди</h2>
-      <div class="shelf kids-shelf">${withStacks(kids)}${sections.length ? '' : addBook}</div>
+      <div class="shelf kids-shelf">${withStacks(kids, true)}${sections.length ? '' : addBook}</div>
     </section>` : '';
   if (!sections.length && !kids.length) {
     html = addBook ? `<div class="shelf">${addBook}</div>` : (books.length ? '<p class="empty">Ничего не найдено.</p>' : '');
@@ -865,7 +888,7 @@ $('deleteBtn').addEventListener('click', () => {
 $('list').addEventListener('click', (e) => {
   const el = e.target.closest('.book');
   if (!el) return;
-  if ('addBook' in el.dataset) startScanner();
+  if ('addBook' in el.dataset) openAddSheet();
   else if (el.dataset.series) openFan(el);
   else openSheet(books.find((b) => b.id === el.dataset.id));
 });
@@ -1192,6 +1215,49 @@ async function addByCode(raw, fromScan = false) {
   });
 }
 
+/* ---------- add a book ---------- */
+
+// The "+" button opens a small sheet: scan, or add by hand (ISBN / title search, or an empty card).
+function openAddSheet() {
+  if (!token) return;
+  const withCovers = books.filter((b) => b.cover);
+  const picks = [...withCovers].sort(() => Math.random() - 0.5).slice(0, 3);
+  $('addHero').innerHTML = picks.map((b, i) => `<span class="cover add-hero-cover" data-i="${i}">${coverInner(b, false)}</span>`).join('');
+  settleCovers($('addHero'));
+  $('isbnForm').hidden = true;
+  $('addBlank').hidden = true;
+  $('addManual').hidden = false;
+  $('addSheet').hidden = false;
+}
+const closeAddSheet = () => { $('addSheet').hidden = true; };
+
+$('addFab').addEventListener('click', openAddSheet);
+$('addClose').addEventListener('click', closeAddSheet);
+$('addSheet').addEventListener('click', (e) => { if (e.target.id === 'addSheet') closeAddSheet(); });
+$('addScan').addEventListener('click', () => { closeAddSheet(); startScanner(); });
+$('addManual').addEventListener('click', () => {
+  $('addManual').hidden = true;
+  $('isbnForm').hidden = false;
+  $('addBlank').hidden = false;
+  $('isbnInput').focus();
+});
+$('addBlank').addEventListener('click', () => {
+  closeAddSheet();
+  openSheet({ title: $('isbnInput').value.trim() }, { isNew: true, note: 'Заполните данные книги' });
+  $('isbnInput').value = '';
+});
+
+// A USB barcode scanner types the code and presses Enter within a few milliseconds.
+let typed = '', typedAt = 0;
+document.addEventListener('keydown', (e) => {
+  if (!token || e.target.closest?.('input, textarea, select') || e.metaKey || e.ctrlKey || e.altKey) return;
+  const now = Date.now();
+  if (now - typedAt > 80) typed = '';
+  typedAt = now;
+  if (/^[\dXx]$/.test(e.key)) typed += e.key;
+  else if (e.key === 'Enter' && typed.length >= 8) { const code = typed; typed = ''; addByCode(code); }
+});
+
 // One field for both: a valid ISBN goes to the ISBN lookup, anything else is searched as a title.
 $('isbnForm').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -1199,6 +1265,7 @@ $('isbnForm').addEventListener('submit', (e) => {
   if (!v) return;
   $('isbnInput').value = '';
   $('isbnInput').blur();
+  closeAddSheet();
   if (normalizeCode(v)) addByCode(v);
   else if (/^[\d\s-]{9,}x?$/i.test(v)) toast('Это не похоже на ISBN'); // a mistyped number, not a title like «1984»
   else searchByTitle(v);
@@ -1510,7 +1577,6 @@ function stopScanner() {
   $('scanner').hidden = true;
 }
 
-$('scanBtn').addEventListener('click', startScanner);
 $('closeScan').addEventListener('click', stopScanner);
 $('scanModes').addEventListener('click', (e) => {
   const mode = e.target.closest('button')?.dataset.mode;
@@ -1602,6 +1668,7 @@ document.addEventListener('keydown', (e) => {
   else if (!$('scanner').hidden) stopScanner();
   else if (!$('results').hidden) { $('results').hidden = true; searchRun++; }
   else if (!$('sheet').hidden) closeSheet();
+  else if (!$('addSheet').hidden) closeAddSheet();
   else if (fan) closeFan();
 });
 
