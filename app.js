@@ -2,7 +2,9 @@
 
 const GKEY_KEY = 'bookshelf.googleKey';
 const LAST_LOC_KEY = 'bookshelf.lastLocation';
-const FIELDS = ['title', 'authors', 'series', 'publisher', 'year', 'category', 'location', 'notes', 'description'];
+const FIELDS = ['title', 'authors', 'series', 'publisher', 'year', 'category', 'location', 'readBy', 'notes', 'description'];
+// Who has read a book: stored as a comma-separated list of these keys ("pasha,alina").
+const READERS = { pasha: 'Паша', alina: 'Алина' };
 const POLYFILL = 'https://cdn.jsdelivr.net/npm/barcode-detector@3.2.2/ponyfill/+esm';
 const collator = new Intl.Collator(['ru', 'en'], { sensitivity: 'base', numeric: true });
 
@@ -839,6 +841,7 @@ function openSheet(book, { isNew = false, fromScan = false, note = '', warn = fa
   if (isNew && !book.location) f.elements.location.value = localStorage.getItem(LAST_LOC_KEY) || '';
   renderLocTags();
   renderCatTags();
+  renderReadTags();
   $('fIsbnText').textContent = book.isbn || '—';
   $('fCover').innerHTML = coverInner(book, false);
   settleCovers($('fCover'));
@@ -1178,6 +1181,29 @@ function renderCatTags() {
     `<button type="button" class="chip${key === current ? ' on' : ''}" aria-pressed="${key === current}" data-cat="${key}">${label}</button>`).join('') +
     (!token && !current ? '<span class="tags-empty">не указана</span>' : '');
 }
+
+// Readers: each person is a toggle with a check mark; visitors only see who has read the book.
+const CHECK = '<svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true"><path d="M2.5 6.8l2.7 2.7 5.3-6" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const readersOf = (value = '') => value.split(',').filter((k) => k in READERS);
+function renderReadTags() {
+  const current = readersOf($('bookForm').elements.readBy.value);
+  const shown = Object.entries(READERS).filter(([key]) => token || current.includes(key));
+  $('readTags').innerHTML = shown.map(([key, name]) => {
+    const on = current.includes(key);
+    return `<button type="button" class="chip read-chip${on ? ' on' : ''}" aria-pressed="${on}" data-reader="${key}">${CHECK}${name}</button>`;
+  }).join('') + (!token && !current.length ? '<span class="tags-empty">пока никто</span>' : '');
+}
+
+$('readTags').addEventListener('click', (e) => {
+  const chip = e.target.closest('button');
+  if (!chip || !token) return;
+  const field = $('bookForm').elements.readBy;
+  const current = readersOf(field.value);
+  const key = chip.dataset.reader;
+  const next = current.includes(key) ? current.filter((k) => k !== key) : [...current, key];
+  field.value = Object.keys(READERS).filter((k) => next.includes(k)).join(',');
+  renderReadTags();
+});
 
 $('catTags').addEventListener('click', (e) => {
   const chip = e.target.closest('button');

@@ -440,6 +440,11 @@ html:has(.lightbox:not([hidden])) { overflow: hidden; }
 .tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .tags .chip:not(.on) { color: var(--ink); }
 .tags .chip:hover:not(.on) { border-color: var(--muted); }
+/* Read marks: an empty ring that fills with a check once the person has read the book */
+.read-chip { display: inline-flex; align-items: center; gap: 6px; padding-left: 8px; }
+.read-chip svg { flex: none; box-sizing: content-box; padding: 1px; border-radius: 50%; border: 1.5px solid var(--line); color: transparent; transition: color 0.15s, border-color 0.15s, background 0.15s; }
+.read-chip.on svg { color: var(--accent); background: #fff; border-color: #fff; }
+.tags .read-chip:hover:not(.on) svg { border-color: var(--muted); }
 .chip-add { display: inline-flex; align-items: center; gap: 5px; border-style: dashed; background: transparent; }
 .tags .chip-add:not(.on) { color: var(--muted); }
 .sheet .tag-input { border: 1px solid var(--accent); border-radius: 999px; padding: 5px 12px; width: 13em; max-width: 100%; }
