@@ -506,7 +506,7 @@ function esc(s) {
 // Book-cloth colours for covers without an image; each title always gets the same one.
 const CLOTHS = ['#4f6150', '#3d5166', '#7d5236', '#74393a', '#8f6b2e', '#44464a', '#5e5170', '#2f5d50'];
 const PLUS_LARGE = '<svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M17 7v20M7 17h20" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
-const BALLOON = '<svg class="kids-icon" width="26" height="34" viewBox="0 0 26 34" aria-hidden="true"><path d="M13 23c-5.5 0-10-4.9-10-10.5S7.5 2 13 2s10 4.9 10 10.5S18.5 23 13 23z" fill="#f08a5d"/><path d="M9 7.5c1-1.4 2.4-2.2 4-2.4" stroke="#fff" stroke-width="1.8" stroke-linecap="round" fill="none" opacity=".7"/><path d="M11.5 23h3l-1.5 2.2z" fill="#e0764a"/><path d="M13 25.2c-1.8 2 1.8 3.6 0 5.8" stroke="#6a88a8" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>';
+const BALLOON = '<svg class="kids-icon" width="26" height="34" viewBox="0 0 26 34" aria-hidden="true"><path d="M13 23c-5.5 0-10-4.9-10-10.5S7.5 2 13 2s10 4.9 10 10.5S18.5 23 13 23z" fill="#f08a5d"/><path d="M9 7.5c1-1.4 2.4-2.2 4-2.4" stroke="#fff" stroke-width="1.8" stroke-linecap="round" fill="none" opacity=".7"/><path d="M11.5 23h3l-1.5 2.2z" fill="#e0764a"/><path class="balloon-string" d="M13 25.2c-1.8 2 1.8 3.6 0 5.8" stroke="#6a88a8" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>';
 const STAR = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 .6l1.6 3.4 3.7.4-2.8 2.5.8 3.7L6 8.7 2.7 10.6l.8-3.7L.7 4.4l3.7-.4z"/></svg>';
 
 function clothCover(b) {

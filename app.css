@@ -80,7 +80,20 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 }
 @media (min-width: 760px) { .kids-section { border-radius: 28px; } }
 .kids-section .shelf-title { display: flex; align-items: center; gap: 8px; color: #2e5b86; font-size: 20px; font-weight: 700; }
-.kids-icon { flex: none; margin-top: -6px; transform: rotate(-8deg); }
+.kids-icon { flex: none; margin-top: -6px; transform: rotate(-8deg); transform-origin: 50% 90%; animation: balloon-float 4.2s ease-in-out infinite; }
+/* The balloon drifts up and sways; its string trails a beat behind. */
+.balloon-string { transform-box: fill-box; transform-origin: 50% 0; animation: balloon-string 4.2s ease-in-out infinite; }
+@keyframes balloon-float {
+  0%, 100% { transform: translateY(0) rotate(-8deg); }
+  35% { transform: translateY(-5px) rotate(-3deg); }
+  70% { transform: translateY(-2px) rotate(-11deg); }
+}
+@keyframes balloon-string {
+  0%, 100% { transform: rotate(0deg); }
+  45% { transform: rotate(9deg); }
+  80% { transform: rotate(-7deg); }
+}
+@media (prefers-reduced-motion: reduce) { .kids-icon, .balloon-string { animation: none; } }
 .kids-shelf .cover { border-radius: 6px; }
 .kids-shelf .book:nth-child(4n+1) .cover { rotate: -1.6deg; }
 .kids-shelf .book:nth-child(4n+2) .cover { rotate: 1.1deg; }
