@@ -796,7 +796,7 @@ function openFan(stackEl) {
     card.style.zIndex = n - i; // the first book lies on top, as in the stack
     const a = (i - (n - 1) / 2) * step;
     card.dataset.to = at(cx + R * Math.sin(a), cy + R * (1 - Math.cos(a)), a, 1);
-    card.style.transitionDelay = `${i * 40}ms`;
+    card.style.transitionDelay = `${i * 30}ms`; // the mirror of closing: same glide, same 30 ms step
   });
   stackEl.classList.add('fanned'); // the cards are the stack now; the shelf copy hides until they return
   requestAnimationFrame(() => requestAnimationFrame(() => {

@@ -185,7 +185,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 .fan-card {
   position: absolute; left: 0; top: 0; padding: 0; border: 0; background: none; cursor: pointer; color: #fff;
   transform-origin: 50% 50%; will-change: transform;
-  transition: transform 0.6s cubic-bezier(0.22, 1.1, 0.36, 1);
+  transition: transform 0.42s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .fan-lift { display: block; transition: translate 0.25s ease-out; }
 .fan-card:hover .fan-lift, .fan-card:focus-visible .fan-lift { translate: 0 -14px; }
@@ -196,11 +196,9 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 html:has(.fan) { overflow: hidden; }
 html { scrollbar-gutter: stable; } /* locking scroll under the fan must not shift the shelf sideways */
 .stack.fanned .stack-covers { visibility: hidden; }
-/* Returning cards glide straight home, without the springy overshoot of opening, and land in stack order. */
-.fan.closing .fan-card { transition: transform 0.42s cubic-bezier(0.4, 0, 0.2, 1); }
 .fan.closing .fan-lift { translate: none; }
 .fan-card .gr-badge { transition: opacity 0.2s; }
-.fan.closing .gr-badge { opacity: 0; }
+.fan:not(.open) .gr-badge { opacity: 0; }
 
 /* Children's covers keep their own proportions, bottom-aligned in the 2:3 slot on the plank */
 .kids-shelf .book:not(.stack) .stand { display: flex; align-items: flex-end; justify-content: center; box-sizing: content-box; aspect-ratio: 2 / 3; container-type: size; }
