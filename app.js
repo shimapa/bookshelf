@@ -587,13 +587,128 @@ async function addByCode(raw, fromScan = false) {
   });
 }
 
+// One field for both: a valid ISBN goes to the ISBN lookup, anything else is searched as a title.
 $('isbnForm').addEventListener('submit', (e) => {
   e.preventDefault();
-  const v = $('isbnInput').value;
-  if (!v.trim()) return;
+  const v = $('isbnInput').value.trim();
+  if (!v) return;
   $('isbnInput').value = '';
-  addByCode(v);
+  $('isbnInput').blur();
+  if (normalizeCode(v)) addByCode(v);
+  else if (/^[\d\s-]{9,}x?$/i.test(v)) toast('Это не похоже на ISBN'); // a mistyped number, not a title like «1984»
+  else searchByTitle(v);
 });
+
+/* ---------- adding by title ---------- */
+
+async function searchChitaiGorod(q) {
+  const token = await chitaiGorodToken();
+  const r = await fetch(`${CG_API}/v2/search/product?phrase=${encodeURIComponent(q)}&products%5Bper-page%5D=24`, {
+    headers: { Authorization: token },
+    signal: timeout(),
+  });
+  if (!r.ok) throw new Error(r.status);
+  return ((await r.json()).included || [])
+    .filter((i) => i.type === 'product' && i.attributes.isBook)
+    .map(({ attributes: a }) => ({
+      title: a.title,
+      authors: (a.authors || []).map((p) => [p.firstName, p.lastName].filter(Boolean).join(' ')).join(', '),
+      publisher: a.publisher?.title || '',
+      year: a.yearPublishing ? String(a.yearPublishing) : '',
+      cover: a.picture ? `https://content.img-gorod.ru${a.picture}?width=400&height=560&fit=bounds` : '',
+      cgSlug: a.url.replace(/^product\//, ''), // ISBN is only in the product details, fetched when chosen
+    }));
+}
+
+async function searchOpenLibrary(q) {
+  const d = await fetchJson(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&fields=title,author_name,first_publish_year,publisher,isbn,cover_i&limit=10`);
+  return (d.docs || []).map((doc) => ({
+    title: doc.title,
+    authors: (doc.author_name || []).slice(0, 3).join(', '),
+    publisher: doc.publisher?.[0] || '',
+    year: doc.first_publish_year ? String(doc.first_publish_year) : '',
+    cover: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : '',
+    isbn: (doc.isbn || []).map(normalizeCode).find((c) => c && isIsbn(c)) || '',
+  }));
+}
+
+const bookKey = (b) => `${(b.title || '').toLowerCase().split(/[:.(]/)[0].replace(/[^\p{L}\p{N}]+/gu, ' ').trim()}|${(b.authors || '').toLowerCase().split(/[ ,]/).filter(Boolean).pop() || ''}`;
+let searchResults = [];
+let searchRun = 0;
+
+async function searchByTitle(q) {
+  const run = ++searchRun;
+  $('resultsTitle').textContent = `«${q}»`;
+  $('resultsList').innerHTML = '<p class="results-state">Ищу…</p>';
+  $('manualBtn').dataset.title = q;
+  $('results').hidden = false;
+
+  const cyrillic = /[а-яё]/i.test(q);
+  const sources = cyrillic ? [searchChitaiGorod, searchOpenLibrary] : [searchOpenLibrary, searchChitaiGorod];
+  const lists = await Promise.all(sources.map((src) => src(q).catch(() => null)));
+  if (run !== searchRun) return; // a newer search replaced this one
+
+  const seen = new Set();
+  searchResults = lists.flatMap((l) => l || []).filter((b) => {
+    const key = `${bookKey(b)}|${b.publisher.toLowerCase()}|${b.year}`; // same book, different editions stay separate
+    if (!b.title || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 12);
+
+  if (!searchResults.length) {
+    $('resultsList').innerHTML = `<p class="results-state">${lists.every((l) => l === null) ? 'Поиск не отвечает — проверьте интернет.' : 'Ничего не нашлось. Попробуйте другое написание или добавьте вручную.'}</p>`;
+    return;
+  }
+  $('resultsList').innerHTML = searchResults.map((b, i) => {
+    const have = findInLibrary(b);
+    return `<button type="button" class="result" data-i="${i}">
+      <span class="cover">${coverInner(b)}</span>
+      <span class="r-text">
+        <span class="r-title">${esc(b.title)}</span>
+        <span class="r-sub">${esc([b.authors, b.year, b.publisher].filter(Boolean).join(' · '))}</span>
+        ${have ? '<span class="r-have">Уже есть в библиотеке</span>' : ''}
+      </span>
+    </button>`;
+  }).join('');
+}
+
+function findInLibrary(b) {
+  return books.find((x) => (b.isbn && x.isbn === b.isbn) || bookKey(x) === bookKey(b));
+}
+
+$('resultsList').addEventListener('click', async (e) => {
+  const el = e.target.closest('.result');
+  if (!el || busy) return;
+  const picked = { ...searchResults[+el.dataset.i] };
+  busy = true;
+  el.classList.add('loading');
+  try {
+    if (picked.cgSlug && !picked.isbn) {
+      const token = await chitaiGorodToken();
+      const r = await fetch(`${CG_API}/v1/products/slug/${encodeURIComponent(picked.cgSlug)}`, { headers: { Authorization: token }, signal: timeout() });
+      const text = r.ok ? await r.text() : '';
+      picked.isbn = (text.match(/"isbn":\["([^"]+)"/)?.[1] && normalizeCode(text.match(/"isbn":\["([^"]+)"/)[1])) || '';
+    }
+    if (!picked.cover && picked.isbn) picked.cover = await findCover(picked.isbn);
+  } catch { /* add without ISBN */ }
+  busy = false;
+  el.classList.remove('loading');
+  delete picked.cgSlug;
+  if (!picked.isbn) delete picked.isbn;
+
+  $('results').hidden = true;
+  const existing = findInLibrary(picked);
+  if (existing) openSheet(existing, { note: 'Уже есть в библиотеке', warn: true });
+  else openSheet(picked, { isNew: true });
+});
+
+$('manualBtn').addEventListener('click', (e) => {
+  $('results').hidden = true;
+  openSheet({ title: e.currentTarget.dataset.title }, { isNew: true, note: 'Заполните данные книги' });
+});
+$('resultsClose').addEventListener('click', () => { $('results').hidden = true; searchRun++; });
+$('results').addEventListener('click', (e) => { if (e.target.id === 'results') { $('results').hidden = true; searchRun++; } });
 
 /* ---------- camera scanner ---------- */
 
@@ -860,6 +975,7 @@ $('sort').addEventListener('change', render);
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if (!$('scanner').hidden) stopScanner();
+  else if (!$('results').hidden) { $('results').hidden = true; searchRun++; }
   else if (!$('sheet').hidden) closeSheet();
 });
 

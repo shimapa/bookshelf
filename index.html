@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f7f6f3">
 <title>Книжная полка</title>
-<link rel="stylesheet" href="app.css?v=12">
+<link rel="stylesheet" href="app.css?v=13">
 </head>
 <body>
 
@@ -22,7 +22,7 @@
     <button data-action="gkey" class="owner-only">Ключ Google Books API…</button>
     <button data-action="signin" class="visitor-only">Войти</button>
     <button data-action="signout" class="owner-only">Выйти</button>
-    <span class="version">Версия 12</span>
+    <span class="version">Версия 13</span>
   </div>
 </header>
 
@@ -43,12 +43,12 @@
 
 <div id="empty" class="empty" hidden>
   <p class="empty-title">Пока нет книг</p>
-  <p class="empty-hint">Нажмите <b>Сканировать</b> и наведите камеру на штрихкод на обороте книги.</p>
+  <p class="empty-hint">Нажмите <b>Сканировать</b> и наведите камеру на штрихкод на обороте книги или введите название.</p>
 </div>
 
 <div class="bar owner-only">
   <form id="isbnForm" class="isbn-form">
-    <input id="isbnInput" inputmode="numeric" placeholder="ISBN" autocomplete="off">
+    <input id="isbnInput" placeholder="ISBN или название" enterkeyhint="search" autocomplete="off">
     <button type="submit" class="btn">Добавить</button>
   </form>
   <button id="scanBtn" class="btn primary">Сканировать</button>
@@ -96,6 +96,19 @@
   </form>
 </div>
 
+<!-- Title search results -->
+<div id="results" class="sheet-wrap" hidden>
+  <div class="sheet">
+    <p class="note">Поиск: <span id="resultsTitle"></span></p>
+    <div id="resultsList" class="results"></div>
+    <div class="sheet-actions">
+      <button type="button" id="manualBtn" class="btn">Добавить вручную</button>
+      <span class="spacer"></span>
+      <button type="button" id="resultsClose" class="btn">Закрыть</button>
+    </div>
+  </div>
+</div>
+
 <!-- Sign in: only the owner can change the library -->
 <div id="signin" class="sheet-wrap" hidden>
   <form id="signinForm" class="sheet">
@@ -115,6 +128,6 @@
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=12"></script>
+<script src="app.js?v=13"></script>
 </body>
 </html>
