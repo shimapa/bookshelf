@@ -557,6 +557,9 @@ function publisherName(raw = '') {
     .replace(/^./, (c) => c.toUpperCase());
 }
 
+// A Russian edition: Russian ISBN group (978-5) or Cyrillic in the title or author.
+const isRussian = (b) => /^9785/.test(b.isbn || '') || /[а-яё]/i.test(`${b.title} ${b.authors || ''}`);
+
 // Distinct locations, sorted, with book counts.
 function locations() {
   const counts = new Map();
@@ -633,9 +636,20 @@ function render() {
       <span class="stand"><span class="cover add-cover">${PLUS_LARGE}</span></span>
       <span class="label"><span class="title">Добавить новую книгу</span></span>
     </button>` : '';
-  const html = shown.length || addBook
-    ? `<div class="shelf">${shown.map(bookHtml).join('')}${addBook}</div>`
-    : (books.length ? '<p class="empty">Ничего не найдено.</p>' : '');
+  // Two shelves: Russian books first, then other languages. Titles appear only when both shelves have books.
+  const russian = shown.filter(isRussian), other = shown.filter((b) => !isRussian(b));
+  const sections = [['На русском', russian], ['На других языках', other]].filter(([, list]) => list.length);
+  const titled = sections.length > 1;
+  let html;
+  if (!sections.length) {
+    html = addBook ? `<div class="shelf">${addBook}</div>` : (books.length ? '<p class="empty">Ничего не найдено.</p>' : '');
+  } else {
+    html = sections.map(([title, list], i) => `
+      <section class="shelf-section">
+        ${titled ? `<h2 class="shelf-title">${title}</h2>` : ''}
+        <div class="shelf">${list.map(bookHtml).join('')}${i === sections.length - 1 ? addBook : ''}</div>
+      </section>`).join('');
+  }
   // Re-creating the same markup would reload every cover (e.g. after a sync that changed nothing).
   if (html === renderedList) return;
   renderedList = html;

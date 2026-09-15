@@ -65,6 +65,10 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
   align-items: start;
   padding-top: 12px;
 }
+/* Language shelves: Russian first, then other languages */
+.shelf-section + .shelf-section { margin-top: 48px; }
+.shelf-title { margin: 8px 0 2px; font-size: 18px; font-weight: 650; letter-spacing: -0.01em; }
+
 /* Planks run edge to edge, so the shelf is clipped sideways to the page gutters. */
 .shelf { overflow-x: clip; margin-inline: -16px; padding-inline: 16px; }
 
