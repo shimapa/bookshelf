@@ -30,7 +30,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* Header */
 .top { display: flex; align-items: center; justify-content: space-between; padding: 20px 0 12px; position: relative; }
-.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; min-width: 0; }
+.brand > * { white-space: nowrap; }
+@media (max-width: 420px) { h1 { font-size: 23px; } }
 h1 { margin: 0; font-size: 26px; font-weight: 650; letter-spacing: -0.02em; }
 .count { color: var(--muted); }
 .icon-btn { background: none; border: 0; line-height: 0; padding: 8px; margin-right: -8px; cursor: pointer; color: var(--muted); border-radius: 8px; }
@@ -175,6 +177,22 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 .scan-modes button { border: 0; background: none; color: #fff; padding: 7px 16px; border-radius: 999px; cursor: pointer; font-weight: 550; white-space: nowrap; }
 .scan-modes button.on { background: #fff; color: #111; }
 .close-scan { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(32px + env(safe-area-inset-bottom)); }
+
+/* Rooms as tags */
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field-label { font-size: 13px; color: var(--muted); }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.tags .chip:not(.on) { color: var(--ink); }
+.tags .chip:hover:not(.on) { border-color: var(--muted); }
+.chip-add { display: inline-flex; align-items: center; gap: 5px; border-style: dashed; background: transparent; }
+.tags .chip-add:not(.on) { color: var(--muted); }
+.sheet .tag-input { border: 1px solid var(--accent); border-radius: 999px; padding: 5px 12px; width: 13em; max-width: 100%; }
+.tags-empty { font-size: 15px; color: var(--muted); }
+.loc-tag {
+  align-self: flex-start; max-width: 100%; margin-top: 5px; padding: 1px 8px;
+  font-size: 11px; line-height: 1.5; color: var(--muted); border: 1px solid var(--line); border-radius: 999px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 
 /* Title search results */
 .results { display: flex; flex-direction: column; margin: 0 -16px; max-height: min(62vh, 560px); overflow-y: auto; overscroll-behavior: contain; }

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f7f6f3">
 <title>Книжная полка</title>
-<link rel="stylesheet" href="app.css?v=13">
+<link rel="stylesheet" href="app.css?v=14">
 </head>
 <body>
 
@@ -22,7 +22,7 @@
     <button data-action="gkey" class="owner-only">Ключ Google Books API…</button>
     <button data-action="signin" class="visitor-only">Войти</button>
     <button data-action="signout" class="owner-only">Выйти</button>
-    <span class="version">Версия 13</span>
+    <span class="version">Версия 14</span>
   </div>
 </header>
 
@@ -37,7 +37,6 @@
 </div>
 
 <nav id="locations" class="locations" hidden></nav>
-<datalist id="locationList"></datalist>
 
 <main id="list" class="shelf"></main>
 
@@ -84,7 +83,11 @@
       <label>Издательство <input name="publisher"></label>
       <label class="short">Год <input name="year" inputmode="numeric"></label>
     </div>
-    <label>Место <input name="location" list="locationList" placeholder="например, Гостиная, полка 2" autocomplete="off"></label>
+    <div class="field">
+      <span class="field-label">Место</span>
+      <div id="locTags" class="tags"></div>
+      <input name="location" type="hidden">
+    </div>
     <label>Заметки <textarea name="notes" rows="2" placeholder="Состояние, кому дал почитать…"></textarea></label>
     <div class="sheet-actions">
       <button type="button" id="deleteBtn" class="btn danger owner-only" hidden>Удалить</button>
@@ -128,6 +131,6 @@
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=13"></script>
+<script src="app.js?v=14"></script>
 </body>
 </html>

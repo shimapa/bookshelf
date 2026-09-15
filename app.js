@@ -459,7 +459,6 @@ function renderLocations() {
     ...locs.map(([name, n]) => chip(name, name, n)),
     unplaced ? chip('', 'Без места', unplaced) : '',
   ].join('');
-  $('locationList').innerHTML = locs.map(([name]) => `<option value="${esc(name)}">`).join('');
 }
 
 function render() {
@@ -484,6 +483,7 @@ function render() {
         <span class="title">${esc(b.title)}</span>
         <span class="sub">${esc(b.authors || b.year || '')}</span>
         ${b.rating ? `<span class="rating">${STAR}${b.rating.toFixed(2)}</span>` : ''}
+        ${b.location && locFilter === null ? `<span class="loc-tag">${esc(b.location)}</span>` : ''}
       </span>
     </button>`).join('') ||
     (books.length ? '<p class="empty">Ничего не найдено.</p>' : '');
@@ -499,6 +499,7 @@ function openSheet(book, { isNew = false, fromScan = false, note = '', warn = fa
   for (const name of FIELDS) f.elements[name].value = book[name] || '';
   // New books default to the last location used, so a whole shelf can be scanned in a row.
   if (isNew && !book.location) f.elements.location.value = localStorage.getItem(LAST_LOC_KEY) || '';
+  renderLocTags();
   $('fIsbnText').textContent = book.isbn || '—';
   $('fCover').innerHTML = coverInner(book);
   $('sheetNote').textContent = note;
@@ -558,6 +559,47 @@ $('deleteBtn').addEventListener('click', () => {
 $('list').addEventListener('click', (e) => {
   const el = e.target.closest('.book');
   if (el) openSheet(books.find((b) => b.id === el.dataset.id));
+});
+
+/* ---------- location tags in the sheet ---------- */
+
+const PLUS = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5v9M1.5 6h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
+
+// Rooms as tags: one can be chosen per book; the owner can also add a new room. Visitors only see the book's room.
+function renderLocTags() {
+  const current = $('bookForm').elements.location.value;
+  const names = locations().map(([name]) => name);
+  if (current && !names.includes(current)) names.push(current);
+  const shown = token ? names : names.filter((n) => n === current);
+  $('locTags').innerHTML = shown.map((n) =>
+    `<button type="button" class="chip${n === current ? ' on' : ''}" aria-pressed="${n === current}" data-loc="${esc(n)}">${esc(n)}</button>`).join('') +
+    (token ? `<button type="button" class="chip chip-add" data-add>${PLUS}Новое место</button>` : '') +
+    (!token && !current ? '<span class="tags-empty">не указано</span>' : '');
+}
+
+$('locTags').addEventListener('click', (e) => {
+  const chip = e.target.closest('button');
+  if (!chip || !token) return;
+  const field = $('bookForm').elements.location;
+  if (!('add' in chip.dataset)) {
+    field.value = chip.dataset.loc === field.value ? '' : chip.dataset.loc;
+    renderLocTags();
+    return;
+  }
+  chip.outerHTML = '<input class="tag-input" placeholder="Название комнаты" enterkeyhint="done" autocomplete="off">';
+  const input = $('locTags').querySelector('.tag-input');
+  input.focus();
+  const commit = () => {
+    const v = input.value.trim().replace(/\s+/g, ' ');
+    // Reuse an existing room's spelling when only the case differs.
+    if (v) field.value = locations().find(([name]) => name.toLowerCase() === v.toLowerCase())?.[0] || v;
+    if (input.isConnected) renderLocTags();
+  };
+  input.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
+    if (ev.key === 'Escape') { ev.stopPropagation(); input.value = ''; renderLocTags(); }
+  });
+  input.addEventListener('blur', commit);
 });
 
 /* ---------- adding by code ---------- */
