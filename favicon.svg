@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- page block peeking out below and to the right of the cover -->
+  <path d="M16 11h32a5 5 0 0 1 5 5v39a5 5 0 0 1-5 5H16z" fill="#eee4cf"/>
+  <path d="M49 16v38M20 57h28" stroke="#d8ccb2" stroke-width="1.4"/>
+  <!-- cloth cover with a darker spine -->
+  <rect x="9" y="5" width="40" height="51" rx="4.5" fill="#2f5d50"/>
+  <path d="M13.5 5h4v51h-4z" fill="#24493f"/>
+  <!-- stamped title -->
+  <rect x="24" y="19" width="18" height="3" rx="1.5" fill="#efe4c9"/>
+  <rect x="24" y="26" width="11" height="3" rx="1.5" fill="#efe4c9" opacity="0.65"/>
+  <!-- ribbon bookmark -->
+  <path d="M39 5h6v18l-3-2.6-3 2.6z" fill="#c9a04a"/>
+</svg>
