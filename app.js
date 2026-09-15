@@ -332,8 +332,57 @@ async function fromChitaiGorod(isbn) {
     authors: (a.authors || []).map((p) => [p.firstName, p.lastName].filter(Boolean).join(' ')).join(', '),
     publisher: a.publisher?.title || '',
     year: a.yearPublishing ? String(a.yearPublishing) : '',
-    cover: a.picture ? `https://content.img-gorod.ru${a.picture}?width=400&height=560&fit=bounds` : '',
+    cover: a.picture ? await cleanCgCover(cgImage(a.picture)) : '',
   };
+}
+
+const cgImage = (path) => `https://content.img-gorod.ru/${path.replace(/^\//, '')}?width=400&height=560&fit=bounds`;
+
+// All pictures Chitai-gorod has for an edition: the main one plus product photos (covers, backs, spreads).
+async function cgGallery(isbn) {
+  const token = await chitaiGorodToken();
+  const r = await fetch(`${CG_API}/v2/search/product?phrase=${isbn}`, { headers: { Authorization: token }, signal: timeout() });
+  const a = r.ok && (await r.json()).included?.find((i) => i.type === 'product')?.attributes;
+  if (!a) return [];
+  const d = await fetch(`${CG_API}/v1/products/slug/${encodeURIComponent(a.url.replace(/^product\//, ''))}`, { headers: { Authorization: token }, signal: timeout() });
+  const text = d.ok ? await d.text() : '';
+  const images = JSON.parse(text.match(/"images":(\[[^\]]*\])/)?.[1] || '[]');
+  return [a.picture, ...images].filter(Boolean).slice(0, 10).map(cgImage);
+}
+
+// Chitai-gorod often shows a 3D product shot on white instead of a flat cover. Pixels of cross-origin images
+// can't be read directly, so a small copy is sampled through images.weserv.nl, an open image proxy with CORS.
+const IMG_PROXY = 'https://images.weserv.nl/?url=';
+
+async function hasWhiteFrame(url) {
+  try {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = `${IMG_PROXY}${encodeURIComponent(url)}&w=60&h=90&fit=inside`;
+    await Promise.race([img.decode(), new Promise((_, no) => setTimeout(no, 8000))]);
+    const c = document.createElement('canvas');
+    const w = (c.width = img.naturalWidth), h = (c.height = img.naturalHeight);
+    const ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const { data } = ctx.getImageData(0, 0, w, h);
+    const white = (x, y) => {
+      const i = (y * w + x) * 4, lo = Math.min(data[i], data[i + 1], data[i + 2]), hi = Math.max(data[i], data[i + 1], data[i + 2]);
+      return lo > 232 && hi - lo < 14;
+    };
+    let hits = 0;
+    for (let x = 0; x < w; x++) hits += white(x, 0) + white(x, h - 1);
+    for (let y = 0; y < h; y++) hits += white(0, y) + white(w - 1, y);
+    return hits / (2 * (w + h)) > 0.95;
+  } catch {
+    return false;
+  }
+}
+
+// Trimming the white background and cropping to 2:3 from the right drops the spine: the shot reads as a flat cover.
+const flattenShot = (url) => `${IMG_PROXY}${encodeURIComponent(url)}&trim=12&w=400&h=600&fit=cover&a=right`;
+
+async function cleanCgCover(url) {
+  return url.includes('img-gorod.ru') && !url.startsWith(IMG_PROXY) && await hasWhiteFrame(url) ? flattenShot(url) : url;
 }
 
 // Goodreads has no public API and sends no CORS headers; its search autocomplete returns the rating.
@@ -368,26 +417,44 @@ function probeImage(url, ms = 8000) {
   });
 }
 
-// Cover images addressable by ISBN alone (no API quota). Probed in parallel, first usable one wins.
-async function findCover(isbn) {
-  const candidates = [
-    { url: `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg?default=false` }, // 404 when missing
-  ];
+// Cover images addressable by ISBN alone (no API quota), in order of preference.
+function isbnCoverUrls(isbn) {
+  const urls = [{ url: `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg?default=false` }]; // 404 when missing
   if (isIsbn(isbn) && isbn.startsWith('978')) {
     const body = isbn.slice(3, 12);
     let sum = 0;
     for (let i = 0; i < 9; i++) sum += +body[i] * (10 - i);
     const check = (11 - (sum % 11)) % 11;
     // Amazon serves a 1×1 GIF when it has no cover.
-    candidates.push({ url: `https://images-na.ssl-images-amazon.com/images/P/${body}${check === 10 ? 'X' : check}.01.LZZZZZZZ.jpg` });
+    urls.push({ url: `https://images-na.ssl-images-amazon.com/images/P/${body}${check === 10 ? 'X' : check}.01.LZZZZZZZ.jpg` });
   }
-  // Google serves a 128×170 "image not available" PNG when it has no cover.
-  candidates.push({ url: `https://books.google.com/books/content?vid=ISBN${isbn}&printsec=frontcover&img=1&zoom=1`, placeholder: [128, 170] });
+  // Google serves a 128×170 "image not available" PNG when it has no cover. It matches Russian ISBNs to the wrong books.
+  if (!isbn.startsWith('9785')) urls.push({ url: `https://books.google.com/books/content?vid=ISBN${isbn}&printsec=frontcover&img=1&zoom=1`, placeholder: [128, 170] });
+  return urls;
+}
 
+const usableImage = (size, candidate) => size && size.w > 40 && size.h > 40 &&
+  !(candidate.placeholder && size.w === candidate.placeholder[0] && size.h === candidate.placeholder[1]);
+
+// Probed in parallel, first usable one wins.
+async function findCover(isbn) {
+  const candidates = isbnCoverUrls(isbn);
   const sizes = await Promise.all(candidates.map((c) => probeImage(c.url)));
-  const i = sizes.findIndex((size, i) => size && size.w > 20 && size.h > 20 &&
-    !(candidates[i].placeholder && size.w === candidates[i].placeholder[0] && size.h === candidates[i].placeholder[1]));
+  const i = sizes.findIndex((size, i) => usableImage(size, candidates[i]));
   return i === -1 ? '' : candidates[i].url;
+}
+
+// Every cover option for the picker: current cover, Chitai-gorod pictures (product shots flattened), ISBN sources.
+async function coverOptions(book) {
+  const candidates = [];
+  if (book.isbn) {
+    const gallery = await cgGallery(book.isbn).catch(() => []);
+    candidates.push(...gallery.map((url) => ({ url })), ...isbnCoverUrls(book.isbn));
+  }
+  const sizes = await Promise.all(candidates.map((c) => probeImage(c.url)));
+  const portrait = candidates.filter((c, i) => usableImage(sizes[i], c) && sizes[i].w / sizes[i].h > 0.45 && sizes[i].w / sizes[i].h < 0.85);
+  const urls = await Promise.all(portrait.map((c) => cleanCgCover(c.url)));
+  return [...new Set([book.cover, ...urls].filter(Boolean))];
 }
 
 // Russian editions (978-5) are best covered by Chitai-gorod; others by Open Library.
@@ -502,6 +569,7 @@ function openSheet(book, { isNew = false, fromScan = false, note = '', warn = fa
   renderLocTags();
   $('fIsbnText').textContent = book.isbn || '—';
   $('fCover').innerHTML = coverInner(book);
+  $('coverPicker').hidden = true;
   $('sheetNote').textContent = note;
   $('sheetNote').className = 'note' + (warn ? ' warn' : '');
   $('sheetDetail').textContent = detail;
@@ -533,6 +601,7 @@ $('bookForm').addEventListener('submit', (e) => {
   // The list may have been refreshed while the sheet was open: edit the current copy of the book.
   const book = isNew ? editing.book : books.find((b) => b.id === editing.book.id) || editing.book;
   for (const name of FIELDS) book[name] = f.elements[name].value.trim().replace(/\s+/g, ' ');
+  if (editing.cover !== undefined) book.cover = editing.cover; // chosen in the cover picker
   // Reuse an existing location's spelling when only the case differs ("гостиная" → "Гостиная").
   const same = locations().find(([name]) => name.toLowerCase() === book.location.toLowerCase());
   if (same) book.location = same[0];
@@ -559,6 +628,31 @@ $('deleteBtn').addEventListener('click', () => {
 $('list').addEventListener('click', (e) => {
   const el = e.target.closest('.book');
   if (el) openSheet(books.find((b) => b.id === el.dataset.id));
+});
+
+/* ---------- cover picker ---------- */
+
+$('coverBtn').addEventListener('click', async () => {
+  if (!editing || !token) return;
+  const sheetBook = editing.book;
+  const picker = $('coverPicker');
+  picker.hidden = false;
+  picker.innerHTML = '<p class="results-state">Ищу обложки…</p>';
+  const options = await coverOptions(sheetBook);
+  if (editing?.book !== sheetBook) return; // sheet closed or another book opened meanwhile
+  const chosen = editing.cover ?? sheetBook.cover ?? '';
+  picker.innerHTML = [...options, ''].map((url) => `
+    <button type="button" class="cover-option${url === chosen ? ' on' : ''}" data-url="${esc(url)}" aria-label="${url ? 'Обложка' : 'Без обложки'}">
+      <span class="cover">${coverInner({ ...sheetBook, cover: url })}</span>
+    </button>`).join('') + (options.length ? '' : '<p class="results-state">Других обложек не нашлось.</p>');
+});
+
+$('coverPicker').addEventListener('click', (e) => {
+  const option = e.target.closest('.cover-option');
+  if (!option || !editing) return;
+  editing.cover = option.dataset.url;
+  $('fCover').innerHTML = coverInner({ ...editing.book, cover: editing.cover });
+  for (const el of $('coverPicker').querySelectorAll('.cover-option')) el.classList.toggle('on', el === option);
 });
 
 /* ---------- location tags in the sheet ---------- */
@@ -732,6 +826,7 @@ $('resultsList').addEventListener('click', async (e) => {
       const text = r.ok ? await r.text() : '';
       picked.isbn = (text.match(/"isbn":\["([^"]+)"/)?.[1] && normalizeCode(text.match(/"isbn":\["([^"]+)"/)[1])) || '';
     }
+    if (picked.cover) picked.cover = await cleanCgCover(picked.cover);
     if (!picked.cover && picked.isbn) picked.cover = await findCover(picked.isbn);
   } catch { /* add without ISBN */ }
   busy = false;
@@ -1023,6 +1118,8 @@ document.addEventListener('keydown', (e) => {
 
 // Books saved before cover/author fallbacks existed: fill their empty fields once, quietly.
 const BACKFILL = 1;
+// Books saved before product shots were detected: flatten their Chitai-gorod cover once.
+const COVER_FIX = 1;
 // Goodreads ratings: fetched one book at a time, re-checked after 90 days (30 if not found before).
 const DAY = 86400000;
 let ratingsRunning = false;
@@ -1070,6 +1167,14 @@ async function backfill() {
     if (found) for (const k of ['authors', 'publisher', 'year']) if (!cur[k] && found[k]) cur[k] = found[k];
     if (!cur.cover && cover) cur.cover = cover;
     cur.backfill = BACKFILL;
+    saveBooks(cur, { background: true });
+  }
+  for (const b of books.filter((b) => b.cover?.includes('img-gorod.ru') && !b.cover.includes('weserv') && (b.coverFix || 0) < COVER_FIX)) {
+    const cover = await cleanCgCover(b.cover);
+    const cur = books.find((x) => x.id === b.id);
+    if (!cur || cur.cover !== b.cover) continue; // deleted or changed by hand meanwhile
+    cur.cover = cover;
+    cur.coverFix = COVER_FIX;
     saveBooks(cur, { background: true });
   }
 }
