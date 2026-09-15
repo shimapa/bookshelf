@@ -2,7 +2,7 @@
 
 const GKEY_KEY = 'bookshelf.googleKey';
 const LAST_LOC_KEY = 'bookshelf.lastLocation';
-const FIELDS = ['title', 'authors', 'publisher', 'year', 'category', 'location', 'notes', 'description'];
+const FIELDS = ['title', 'authors', 'series', 'publisher', 'year', 'category', 'location', 'notes', 'description'];
 const POLYFILL = 'https://cdn.jsdelivr.net/npm/barcode-detector@3.2.2/ponyfill/+esm';
 const collator = new Intl.Collator(['ru', 'en'], { sensitivity: 'base', numeric: true });
 
@@ -348,6 +348,7 @@ async function fromChitaiGorod(isbn) {
     year: a.yearPublishing ? String(a.yearPublishing) : '',
     cover: a.picture ? await cleanCgCover(cgImage(a.picture)) : '',
     category: cgCategory(a.categoryChain),
+    publisherSeries: a.publisherSeries?.title || '', // only used to match an existing series, never stored
   };
 }
 
@@ -562,6 +563,26 @@ function publisherName(raw = '') {
     .replace(/^./, (c) => c.toUpperCase());
 }
 
+/* ---------- series ---------- */
+
+const seriesKey = (name = '') => name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+function seriesNames() {
+  const names = new Map();
+  for (const b of books) if (b.series) names.set(seriesKey(b.series), b.series);
+  return [...names.values()].sort((a, b) => collator.compare(a, b));
+}
+
+// A new book joins an existing series when the store names that series, or its title starts with the series name.
+// Store "series" are often publisher lines, so they are never used to start a new series on their own.
+function matchSeries(book) {
+  const title = seriesKey(book.title), store = seriesKey(book.publisherSeries);
+  return seriesNames().find((name) => { const k = seriesKey(name); return k && (k === store || title.startsWith(k + ' ') || title === k); }) || '';
+}
+
+// Books of one series in reading order: by year, then title with numbers compared as numbers.
+const seriesOrder = (a, b) => (+a.year || 9999) - (+b.year || 9999) || collator.compare(a.title, b.title);
+
 // A Russian edition: Russian ISBN group (978-5) or Cyrillic in the title or author.
 const isRussian = (b) => /^9785/.test(b.isbn || '') || /[а-яё]/i.test(`${b.title} ${b.authors || ''}`);
 
@@ -611,7 +632,7 @@ function render() {
   const sort = $('sort').value;
   let shown = books.filter((b) => inCategory(b) &&
     (locFilter === null || (b.location || '') === locFilter) &&
-    (!q || [b.title, b.authors, b.isbn, b.publisher, b.location, b.notes].some((f) => (f || '').toLowerCase().includes(q))));
+    (!q || [b.title, b.authors, b.series, b.isbn, b.publisher, b.location, b.notes].some((f) => (f || '').toLowerCase().includes(q))));
 
   if (sort === 'publisher') {
     // Books stand in publisher order (then author, then title); books without a publisher go last.
@@ -636,6 +657,30 @@ function render() {
         ${b.location && locFilter === null ? `<span class="loc-tag">${esc(b.location)}</span>` : ''}
       </span>
     </button>`;
+  // Two or more visible books of one series stand as a single stack where the first of them would be.
+  stacks.clear();
+  const withStacks = (list) => {
+    const groups = new Map();
+    for (const b of list) if (b.series) { const k = seriesKey(b.series); groups.set(k, [...(groups.get(k) || []), b]); }
+    const done = new Set();
+    return list.map((b) => {
+      const k = b.series && seriesKey(b.series);
+      if (!k || groups.get(k).length < 2) return bookHtml(b);
+      if (done.has(k)) return '';
+      done.add(k);
+      const members = groups.get(k).sort(seriesOrder);
+      stacks.set(k, { name: b.series, books: members });
+      return stackHtml(k, members);
+    }).join('');
+  };
+  const stackHtml = (k, members) => `
+    <button class="book stack" data-series="${esc(k)}" aria-label="Серия «${esc(members[0].series)}», ${members.length} ${plural(members.length, BOOK_FORMS)}">
+      <span class="stand"><span class="stack-covers">${members.slice(0, 3).map((b, depth) => `<span class="cover stack-cover" data-depth="${depth}">${coverInner(b, index++ >= 12)}</span>`).reverse().join('')}</span></span>
+      <span class="label">
+        <span class="title">${esc(members[0].series)}</span>
+        <span class="sub">${members.length} ${plural(members.length, BOOK_FORMS)}</span>
+      </span>
+    </button>`;
   // The owner's shelf ends with a grey placeholder book for adding a new one (not while searching).
   const addBook = token && !q ? `
     <button class="book add-book" data-add-book>
@@ -653,7 +698,7 @@ function render() {
   const kidsShelf = kids.length ? `
     <section class="shelf-section kids-section">
       <h2 class="shelf-title kids-title">${BALLOON}Полка Феди</h2>
-      <div class="shelf kids-shelf">${kids.map(bookHtml).join('')}${sections.length ? '' : addBook}</div>
+      <div class="shelf kids-shelf">${withStacks(kids)}${sections.length ? '' : addBook}</div>
     </section>` : '';
   if (!sections.length && !kids.length) {
     html = addBook ? `<div class="shelf">${addBook}</div>` : (books.length ? '<p class="empty">Ничего не найдено.</p>' : '');
@@ -661,16 +706,76 @@ function render() {
     html = sections.map(([title, list], i) => `
       <section class="shelf-section">
         ${titled ? `<h2 class="shelf-title">${title}</h2>` : ''}
-        <div class="shelf">${list.map(bookHtml).join('')}${i === sections.length - 1 ? addBook : ''}</div>
+        <div class="shelf">${withStacks(list)}${i === sections.length - 1 ? addBook : ''}</div>
       </section>`).join('') + kidsShelf;
   }
   // Re-creating the same markup would reload every cover (e.g. after a sync that changed nothing).
   if (html === renderedList) return;
   renderedList = html;
   $('list').innerHTML = html;
+  $('seriesList').innerHTML = seriesNames().map((n) => `<option value="${esc(n)}">`).join('');
   settleCovers($('list'));
 }
 let renderedList = null;
+const stacks = new Map(); // series key → { name, books } for the stacks on screen
+
+/* ---------- series fan ---------- */
+
+// Tapping a stack fans its books out over the page, like a hand of cards; each card opens its book.
+// The fan stays under the book card, so closing the card returns to the fan.
+let fan = null; // { el, cards, origin }
+
+function openFan(stackEl) {
+  const stack = stacks.get(stackEl.dataset.series);
+  if (!stack || fan) return;
+  const front = stackEl.querySelector('.stack-cover[data-depth="0"]').getBoundingClientRect();
+  const vw = innerWidth, vh = innerHeight, n = stack.books.length;
+  const w = Math.round(Math.min(170, Math.max(104, vw * 0.3))), h = Math.round(w * 1.5);
+  const R = Math.max(w * 2.6, 320);
+  const reach = Math.max(0, vw / 2 - w * 0.68 - 12); // rotated edge cards are wider than w
+  const maxAngle = Math.asin(Math.min(1, reach / R));
+  const step = n > 1 ? Math.min(16 * Math.PI / 180, (2 * maxAngle) / (n - 1)) : 0;
+  const cx = vw / 2, cy = Math.min(vh * 0.5, vh - h / 2 - 90);
+
+  const el = document.createElement('div');
+  el.className = 'fan';
+  el.innerHTML = `<div class="fan-backdrop"></div><p class="fan-title">${esc(stack.name)}<span>${n} ${plural(n, BOOK_FORMS)}</span></p>` +
+    stack.books.map((b) => `<button type="button" class="fan-card" data-id="${esc(b.id)}" style="width:${w}px" aria-label="${esc(b.title)}"><span class="fan-lift"><span class="cover">${coverInner(b, false)}</span></span></button>`).join('');
+  document.body.append(el);
+  settleCovers(el);
+
+  const cards = [...el.querySelectorAll('.fan-card')];
+  const at = (x, y, angle, scale) => `translate(${x - w / 2}px, ${y - h / 2}px) rotate(${angle}rad) scale(${scale})`;
+  const origin = () => { const r = stackEl.querySelector('.stack-cover[data-depth="0"]')?.getBoundingClientRect() || front; return [r.left + r.width / 2, r.top + r.height / 2, r.width / w]; };
+  const [ox, oy, os] = origin();
+  cards.forEach((card, i) => {
+    card.style.transform = at(ox, oy, 0, os);
+    const a = (i - (n - 1) / 2) * step;
+    card.dataset.to = at(cx + R * Math.sin(a), cy + R * (1 - Math.cos(a)), a, 1);
+    card.style.transitionDelay = `${i * 40}ms`;
+  });
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    el.classList.add('open');
+    for (const card of cards) card.style.transform = card.dataset.to;
+  }));
+  fan = { el, cards, origin, at };
+
+  el.addEventListener('click', (e) => {
+    const card = e.target.closest('.fan-card');
+    if (card) openSheet(books.find((b) => b.id === card.dataset.id));
+    else closeFan();
+  });
+}
+
+function closeFan() {
+  if (!fan) return;
+  const { el, cards, origin, at } = fan;
+  fan = null;
+  const [ox, oy, os] = origin();
+  el.classList.remove('open');
+  cards.forEach((card, i) => { card.style.transitionDelay = `${(cards.length - 1 - i) * 25}ms`; card.style.transform = at(ox, oy, 0, os); });
+  setTimeout(() => el.remove(), 480);
+}
 
 /* ---------- book sheet ---------- */
 
@@ -703,6 +808,7 @@ function openSheet(book, { isNew = false, fromScan = false, note = '', warn = fa
   $('deleteBtn').hidden = isNew;
   $('saveNextBtn').hidden = !(isNew && fromScan);
   $('aboutField').hidden = !token && !book.description;
+  $('seriesField').hidden = !token && !book.series;
   $('sheet').hidden = false;
   $('sheet').querySelector('.sheet').scrollTop = 0;
   for (const el of f.querySelectorAll('textarea')) fitTextarea(el);
@@ -760,6 +866,7 @@ $('list').addEventListener('click', (e) => {
   const el = e.target.closest('.book');
   if (!el) return;
   if ('addBook' in el.dataset) startScanner();
+  else if (el.dataset.series) openFan(el);
   else openSheet(books.find((b) => b.id === el.dataset.id));
 });
 
@@ -1074,7 +1181,10 @@ async function addByCode(raw, fromScan = false) {
   const { found: data, report } = await lookup(isbn);
   busy = false;
   hideToast();
-  openSheet({ isbn, ...(data || {}) }, {
+  const { publisherSeries, ...fields } = data || {};
+  const book = { isbn, ...fields };
+  book.series = matchSeries({ ...book, publisherSeries });
+  openSheet(book, {
     isNew: true,
     fromScan,
     note: data ? '' : (isIsbn(isbn) ? 'Не нашлось в интернете — заполните сами' : 'Это не ISBN — заполните сами'),
@@ -1112,6 +1222,7 @@ async function searchChitaiGorod(q) {
       year: a.yearPublishing ? String(a.yearPublishing) : '',
       cover: a.picture ? `https://content.img-gorod.ru${a.picture}?width=400&height=560&fit=bounds` : '',
       category: cgCategory(a.categoryChain),
+      publisherSeries: a.publisherSeries?.title || '',
       cgSlug: a.url.replace(/^product\//, ''), // ISBN is only in the product details, fetched when chosen
     }));
 }
@@ -1186,12 +1297,14 @@ $('resultsList').addEventListener('click', async (e) => {
       const text = r.ok ? await r.text() : '';
       picked.isbn = (text.match(/"isbn":\["([^"]+)"/)?.[1] && normalizeCode(text.match(/"isbn":\["([^"]+)"/)[1])) || '';
     }
+    picked.series = matchSeries(picked);
     if (picked.cover) picked.cover = await cleanCgCover(picked.cover);
     if (!picked.cover && picked.isbn) picked.cover = await findCover(picked.isbn);
   } catch { /* add without ISBN */ }
   busy = false;
   el.classList.remove('loading');
   delete picked.cgSlug;
+  delete picked.publisherSeries;
   if (!picked.isbn) delete picked.isbn;
 
   $('results').hidden = true;
@@ -1489,6 +1602,7 @@ document.addEventListener('keydown', (e) => {
   else if (!$('scanner').hidden) stopScanner();
   else if (!$('results').hidden) { $('results').hidden = true; searchRun++; }
   else if (!$('sheet').hidden) closeSheet();
+  else if (fan) closeFan();
 });
 
 // Books saved before cover/author fallbacks existed: fill their empty fields once, quietly.

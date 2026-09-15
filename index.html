@@ -12,7 +12,7 @@
 <link rel="preconnect" href="https://images.weserv.nl">
 <link rel="preconnect" href="https://covers.openlibrary.org">
 <link rel="dns-prefetch" href="https://archive.org">
-<link rel="stylesheet" href="app.css?v=32">
+<link rel="stylesheet" href="app.css?v=33">
 </head>
 <body>
 
@@ -29,7 +29,7 @@
     <button data-action="gkey" class="owner-only">Ключ Google Books API…</button>
     <button data-action="signin" class="visitor-only">Войти</button>
     <button data-action="signout" class="owner-only">Выйти</button>
-    <span class="version">Версия 32</span>
+    <span class="version">Версия 33</span>
   </div>
 </header>
 
@@ -48,6 +48,7 @@
 <nav id="locations" class="locations" hidden></nav>
 
 <main id="list" class="library"></main>
+<datalist id="seriesList"></datalist>
 
 <div id="empty" class="empty" hidden>
   <p class="empty-title">Пока нет книг</p>
@@ -93,6 +94,7 @@
     <label id="aboutField" class="about">О книге <textarea name="description" rows="2" placeholder="Читать, если хочешь… или Читать, чтобы окунуться…"></textarea></label>
     <label>Название <input name="title" required></label>
     <label>Автор <input name="authors"></label>
+    <label id="seriesField">Серия <input name="series" list="seriesList" placeholder="например, Гарри Поттер" autocomplete="off"></label>
     <div class="row">
       <label>Издательство <input name="publisher"></label>
       <label class="short">Год <input name="year" inputmode="numeric"></label>
@@ -178,6 +180,6 @@
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=32"></script>
+<script src="app.js?v=33"></script>
 </body>
 </html>
