@@ -1,10 +1,116 @@
 'use strict';
 
+/* ---------- language: Russian (the source) or English ---------- */
+
+// Interface strings are written in Russian; in English they are looked up here. A missing entry stays Russian.
+const LANG_KEY = 'bookshelf.lang';
+let lang = (() => { try { return localStorage.getItem(LANG_KEY) === 'en' ? 'en' : 'ru'; } catch { return 'ru'; } })();
+const locale = () => (lang === 'en' ? 'en-GB' : 'ru-RU');
+
+const EN = {
+  // header, menu, tools
+  'Книжная полка': 'Bookshelf', 'Меню': 'Menu', 'Скачать резервную копию': 'Download a backup', 'Загрузить резервную копию': 'Restore a backup',
+  'Ключ Google Books API…': 'Google Books API key…', 'Войти': 'Sign in', 'Выйти': 'Sign out', 'Язык': 'Language',
+  'Все книги корешками': 'All books, spines out', 'Разделы': 'Sections', 'Что почитать?': 'What to read?', 'Статистика': 'Statistics', 'Карта полок': 'Shelf map',
+  'Поиск книг': 'Search books', 'Сортировка': 'Sort', 'По издательству': 'By publisher', 'Новые': 'Newest', 'По названию': 'By title', 'По автору': 'By author', 'По оценке': 'By rating',
+  'Пока нет книг': 'No books yet', 'Нажмите': 'Tap', 'внизу слева, чтобы отсканировать книгу или добавить её вручную.': 'in the bottom left corner to scan a book or add it by hand.',
+  // shelves and filters
+  'Все': 'All', 'Художественная': 'Fiction', 'Нон-фикшн': 'Non-fiction', 'Детские': 'Children’s', 'Без категории': 'No category', 'Без места': 'No room',
+  'Прочитал Паша': 'Read by Pasha', 'Прочитала Алина': 'Read by Alina', 'Никто не читал': 'Nobody has read', 'Паша': 'Pasha', 'Алина': 'Alina',
+  'На русском': 'In Russian', 'На других языках': 'In other languages', 'Полка Феди': 'Fedya’s shelf', 'Добавить новую книгу': 'Add a new book', 'Ничего не найдено.': 'Nothing found.', 'Серия': 'Series',
+  // add sheet, scanner
+  'Добавить книгу': 'Add a book', 'Сканировать ISBN или штрихкод': 'Scan an ISBN or barcode', 'Наведите камеру на обратную сторону книги': 'Point the camera at the back of the book',
+  'Добавить вручную': 'Add by hand', 'По ISBN, названию или с чистого листа': 'By ISBN, title or from scratch', 'ISBN или название': 'ISBN or title', 'Найти': 'Search',
+  'Заполнить карточку без поиска': 'Fill in the card without searching', 'Отмена': 'Cancel', 'Штрихкод': 'Barcode', 'Номер ISBN': 'ISBN number', 'Наведите на штрихкод': 'Point at the barcode', 'Закрыть': 'Close',
+  'Включаю камеру…': 'Starting the camera…', 'Загружаю распознавание текста…': 'Loading text recognition…', 'Поместите номер ISBN в рамку': 'Fit the ISBN number in the frame',
+  'Сканер не загрузился — проверьте интернет': 'The scanner didn’t load — check the connection', 'Камера работает только по https. Введите ISBN вручную.': 'The camera only works over https. Type the ISBN instead.',
+  'Нет доступа к камере': 'No access to the camera', 'Не удалось включить камеру': 'Couldn’t start the camera', 'Это не похоже на ISBN': 'That doesn’t look like an ISBN', 'Ищу книгу…': 'Looking up the book…',
+  'Не нашлось в интернете — заполните сами': 'Not found online — fill it in yourself', 'Это не ISBN — заполните сами': 'Not an ISBN — fill it in yourself', 'Заполните данные книги': 'Fill in the book’s details',
+  // book card
+  'Открыть обложку': 'Open the cover', 'Сменить обложку': 'Change the cover', 'Сфотографировать обложку': 'Photograph the cover', 'О книге': 'About', 'Читать, если хочешь… или Читать, чтобы окунуться…': 'Read if you want to… or Read to immerse yourself in…',
+  'Название': 'Title', 'Автор': 'Author', 'например, Гарри Поттер': 'e.g. Harry Potter', 'Издательство': 'Publisher', 'Год': 'Year', 'Страниц': 'Pages', 'Категория': 'Category', 'Место': 'Room', 'Прочитали': 'Read by',
+  'Заметки': 'Notes', 'Состояние, кому дал почитать…': 'Condition, who borrowed it…', 'Удалить': 'Delete', 'Добавить': 'Add', 'Сохранить': 'Save', 'Добавить и сканировать дальше': 'Add and scan the next one',
+  'Добавлено': 'Added', 'Сохранено': 'Saved', 'Удалить «{title}»?': 'Delete “{title}”?', 'Новое место': 'New room', 'Название комнаты': 'Room name', 'не указано': 'not set', 'не указана': 'not set', 'пока никто': 'nobody yet',
+  'из': 'of', 'Оценка:': 'Rating:', 'Уже есть в библиотеке': 'Already in the library', 'стоит:': 'shelved in:', 'Серия «{name}»': 'Series “{name}”',
+  '«{title}» уже есть в библиотеке{room}. Всё равно добавить ещё один экземпляр?': '“{title}” is already in the library{room}. Add another copy anyway?',
+  'Ищу обложки…': 'Looking for covers…', 'Обложка': 'Cover', 'Без обложки': 'No cover', 'Других обложек не нашлось.': 'No other covers found.',
+  'Не удалось открыть фото': 'Couldn’t open the photo', 'Загружаю фото…': 'Uploading the photo…', 'Фото загружено — нажмите «Сохранить»': 'Photo uploaded — tap “Save”', 'Не удалось сохранить фото в GitHub': 'Couldn’t save the photo to GitHub',
+  'Подгоните рамку по краям обложки': 'Fit the frame to the edges of the cover', 'Сбросить': 'Reset', 'Готово': 'Done', 'Предыдущая': 'Previous', 'Следующая': 'Next',
+  // title search
+  'Поиск:': 'Search:', 'Ищу…': 'Searching…', 'Поиск не отвечает — проверьте интернет.': 'Search isn’t responding — check the connection.', 'Ничего не нашлось. Попробуйте другое написание или добавьте вручную.': 'Nothing found. Try another spelling or add it by hand.',
+  // sign in, sync, backup
+  'Вход для редактирования': 'Sign in to edit', 'Вставьте GitHub-токен с правом записи в': 'Paste a GitHub token with write access to', '. Он хранится только на этом устройстве.': '. It is stored only on this device.', 'GitHub-токен': 'GitHub token',
+  'Вы вошли': 'Signed in', 'Вы вошли · добавлено {n} с этого устройства': 'Signed in · {n} added from this device', 'Токен не принят': 'Token not accepted', 'У этого токена нет права записи в {repo}': 'This token can’t write to {repo}', 'Не удалось связаться с GitHub': 'Couldn’t reach GitHub',
+  'сохраняю…': 'saving…', 'нет связи': 'offline', 'вход истёк': 'sign-in expired', 'токен без права записи': 'token can’t write', 'не сохранено': 'not saved', 'найдено': 'found', 'нет': 'none', 'ошибка': 'error',
+  'Ключ сохранён': 'Key saved', 'Ключ удалён': 'Key removed', 'Импортировано:': 'Imported:', 'Это не файл резервной копии': 'That isn’t a backup file',
+  'Ключ Google Books API (необязательно: помогает, когда бесплатный лимит закончился). Оставьте пустым, чтобы удалить.': 'Google Books API key (optional: helps when the free quota runs out). Leave empty to remove it.',
+  'Книги с этого устройства перенесутся в библиотеку, когда вы войдёте (меню → Войти)': 'Books from this device will move into the library once you sign in (menu → Sign in)',
+  // what to read
+  'Для кого': 'For whom', 'Другую': 'Another', 'Открыть': 'Open', 'Кому угодно': 'Anyone', 'Любая': 'Any', 'Все книги уже кто-то прочитал': 'Every book has been read by someone',
+  'Паша прочитал всё': 'Pasha has read everything', 'Алина прочитала всё': 'Alina has read everything', 'пора за новыми!': 'time for new ones!', 'Ещё {count} {books} на выбор': '{count} more {books} to choose from',
+  // statistics
+  'Наша библиотека': 'Our library', 'страниц на полках': 'pages on the shelves', 'страниц': 'pages', 'средняя оценка': 'average rating', 'Оба прочитали': 'Both have read', 'никто пока не открывал': 'nobody has opened yet',
+  'Категории': 'Categories', 'Комнаты': 'Rooms', 'Издательства': 'Publishers', 'Годы издания': 'Publication years', 'Рекорды': 'Records',
+  'Самая толстая': 'Thickest', 'Самая тонкая': 'Thinnest', 'Самое старое издание': 'Oldest edition', 'Лучшая по Goodreads': 'Best on Goodreads', 'Любимая в семье': 'Family favourite',
+  // map
+  'Нажмите на комнату, чтобы увидеть её книги': 'Tap a room to see its books',
+};
+const EN_PATTERNS = [[/^Версия (\d+)$/, 'Version $1']];
+const EN_PLURALS = { 'книга': ['book', 'books'], 'оценка': ['rating', 'ratings'], 'страница': ['page', 'pages'], 'автор': ['author', 'authors'], 'комната': ['room', 'rooms'] };
+// Rooms are the family's own names; the usual ones get an English name, others show as written.
+const EN_ROOMS = { 'Гостиная': 'Living room', 'Кабинет Паши': 'Pasha’s study', 'Спальня': 'Bedroom', 'Столовая': 'Dining room', 'Детская': 'Children’s room', 'Кухня': 'Kitchen', 'Прихожая': 'Hallway' };
+
+function t(text, vars) {
+  let out = text;
+  if (lang === 'en') {
+    out = EN[text] ?? text;
+    if (out === text) for (const [re, to] of EN_PATTERNS) if (re.test(text)) { out = text.replace(re, to); break; }
+  }
+  return vars ? out.replace(/\{(\w+)\}/g, (m, k) => vars[k] ?? m) : out;
+}
+const roomLabel = (name) => (lang === 'en' && EN_ROOMS[name]) || name;
+// Label maps whose values follow the language: { key: 'Русский' } read through t().
+function localized(map) {
+  const out = {};
+  for (const [k, v] of Object.entries(map)) Object.defineProperty(out, k, { get: () => t(v), enumerable: true });
+  return out;
+}
+// The one-line description has an English twin; the card edits whichever language is shown.
+const fieldKey = (name, l = lang) => (name === 'description' && l === 'en' ? 'descriptionEn' : name);
+
+// Static page text: every text node and label is translated from the Russian it was written in.
+// Parts filled in by the app (the shelves, cards, lists) are skipped — they are rendered through t().
+const DYNAMIC = '#list, #heroTrack, #locations, #readers, #categories, #locTags, #catTags, #readTags, #pickCard, #pickWho, #pickCat, #statsBody, #mapPlan, #resultsList, #resultsTitle, #addHero, #coverPicker, #fCover, #fIsbnText, #toast, #sheetNote, #sheetDetail, #grLink, #count, #syncState, #lbTrack, #lbCounter, #signinError, #langSwitch';
+const ruText = new WeakMap();
+function translatePage() {
+  document.documentElement.lang = lang;
+  document.title = t('Книжная полка');
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let node; (node = walker.nextNode());) {
+    if (!ruText.has(node)) {
+      if (!/[А-Яа-яЁё]/.test(node.nodeValue) || node.parentElement.closest(DYNAMIC)) continue;
+      ruText.set(node, node.nodeValue);
+    }
+    const ru = ruText.get(node), core = ru.trim();
+    node.nodeValue = ru.replace(core, t(core));
+  }
+  for (const el of document.querySelectorAll('[placeholder], [aria-label], [title]')) {
+    if (el.parentElement?.closest(DYNAMIC)) continue; // a container's own label is static; what the app puts inside is not
+    for (const attr of ['placeholder', 'aria-label', 'title']) {
+      if (!el.hasAttribute(attr)) continue;
+      const key = 'ru' + attr.replace(/(^|-)(\w)/g, (m, dash, c) => c.toUpperCase()); // ruPlaceholder, ruAriaLabel, ruTitle
+      if (!(key in el.dataset)) { if (!/[А-Яа-яЁё]/.test(el.getAttribute(attr))) continue; el.dataset[key] = el.getAttribute(attr); }
+      el.setAttribute(attr, t(el.dataset[key]));
+    }
+  }
+  for (const btn of document.querySelectorAll('#langSwitch button')) btn.classList.toggle('on', btn.dataset.lang === lang);
+}
+
 const GKEY_KEY = 'bookshelf.googleKey';
 const LAST_LOC_KEY = 'bookshelf.lastLocation';
 const FIELDS = ['title', 'authors', 'series', 'publisher', 'year', 'pages', 'category', 'location', 'readBy', 'ratingPasha', 'ratingAlina', 'notes', 'description'];
 // Who has read a book: stored as a comma-separated list of these keys ("pasha,alina"); each reader's own 1–5 stars in its field.
-const READERS = { pasha: 'Паша', alina: 'Алина' };
+const READERS = localized({ pasha: 'Паша', alina: 'Алина' });
 const RATING_FIELD = { pasha: 'ratingPasha', alina: 'ratingAlina' };
 const hasRead = (b, key) => (b.readBy || '').split(',').includes(key);
 const POLYFILL = 'https://cdn.jsdelivr.net/npm/barcode-detector@3.2.2/ponyfill/+esm';
@@ -12,8 +118,9 @@ const collator = new Intl.Collator(['ru', 'en'], { sensitivity: 'base', numeric:
 
 const $ = (id) => document.getElementById(id);
 
-// Russian plural: plural(5, ['книга', 'книги', 'книг']) → 'книг'.
+// Russian plural: plural(5, ['книга', 'книги', 'книг']) → 'книг'. In English: 'book' / 'books'.
 function plural(n, [one, few, many]) {
+  if (lang === 'en') { const en = EN_PLURALS[one]; if (en) return n === 1 ? en[0] : en[1]; }
   const m10 = n % 10, m100 = n % 100;
   if (m10 === 1 && m100 !== 11) return one;
   if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
@@ -24,7 +131,7 @@ let locFilter = null; // null = all, '' = books without a location, otherwise a 
 let readFilter = null; // null = all, 'pasha' / 'alina' = read by that person, 'none' = read by nobody
 let catFilter = null; // null = all, otherwise a CATEGORIES key
 
-const CATEGORIES = { fiction: 'Художественная', nonfiction: 'Нон-фикшн', kids: 'Детские' };
+const CATEGORIES = localized({ fiction: 'Художественная', nonfiction: 'Нон-фикшн', kids: 'Детские' });
 
 // Chitai-gorod: its category path names fiction explicitly ("Художественная литература", also for children's books).
 const cgCategory = (chain = []) => chain.length < 2 ? ''
@@ -73,7 +180,7 @@ function applyOps(list, ops) {
 function persist() {
   localStorage.setItem(CACHE_KEY, JSON.stringify(remote));
   localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
-  if (token && pending.length) setSyncState('сохраняю…');
+  if (token && pending.length) setSyncState(t('сохраняю…'));
   render();
 }
 
@@ -131,7 +238,7 @@ async function sync() {
     setSyncState('');
     persist();
   } catch (err) {
-    setSyncState(!token ? 'нет связи' : err.status === 401 ? 'вход истёк' : err.status === 403 || err.status === 404 ? 'токен без права записи' : 'не сохранено');
+    setSyncState(t(!token ? 'нет связи' : err.status === 401 ? 'вход истёк' : err.status === 403 || err.status === 404 ? 'токен без права записи' : 'не сохранено'));
   } finally {
     syncing = false;
     if (syncAgain) { syncAgain = false; sync(); }
@@ -235,10 +342,10 @@ $('signinForm').addEventListener('submit', async (e) => {
     const moved = await signIn(e.target.elements.token.value);
     $('signin').hidden = true;
     e.target.reset();
-    toast(moved ? `Вы вошли · добавлено ${moved} ${plural(moved, BOOK_FORMS)} с этого устройства` : 'Вы вошли', 3000);
+    toast(moved ? t('Вы вошли · добавлено {n} с этого устройства', { n: `${moved} ${plural(moved, BOOK_FORMS)}` }) : t('Вы вошли'), 3000);
   } catch (err) {
-    $('signinError').textContent = err.status === 401 ? 'Токен не принят' : err.status === 403 || err.status === 404
-      ? `У этого токена нет права записи в ${REPO}` : 'Не удалось связаться с GitHub';
+    $('signinError').textContent = err.status === 401 ? t('Токен не принят') : err.status === 403 || err.status === 404
+      ? t('У этого токена нет права записи в {repo}', { repo: REPO }) : t('Не удалось связаться с GitHub');
     $('signinError').hidden = false;
   } finally {
     btn.disabled = false;
@@ -502,9 +609,9 @@ async function lookup(isbn) {
     let r = null;
     try {
       r = await src(isbn);
-      report.push(`${name}: ${r ? 'найдено' : 'нет'}`);
+      report.push(`${name}: ${t(r ? 'найдено' : 'нет')}`);
     } catch (err) {
-      report.push(`${name}: ошибка ${err.name === 'Error' ? err.message : err.name + ' ' + err.message}`);
+      report.push(`${name}: ${t('ошибка')} ${err.name === 'Error' ? err.message : err.name + ' ' + err.message}`);
     }
     if (!r) continue;
     found ??= {};
@@ -654,9 +761,9 @@ function renderReaderFilter() {
   const chip = (value, label, n) => `<button class="chip reader-filter${readFilter === value ? ' on' : ''}" data-read="${value}">${label} <span>${n}</span></button>`;
   $('readers').hidden = books.length === 0;
   $('readers').innerHTML = [
-    chip('pasha', 'Прочитал Паша', pool.filter((b) => hasRead(b, 'pasha')).length),
-    chip('alina', 'Прочитала Алина', pool.filter((b) => hasRead(b, 'alina')).length),
-    chip('none', 'Никто не читал', pool.filter((b) => !(b.readBy || '')).length),
+    chip('pasha', t('Прочитал Паша'), pool.filter((b) => hasRead(b, 'pasha')).length),
+    chip('alina', t('Прочитала Алина'), pool.filter((b) => hasRead(b, 'alina')).length),
+    chip('none', t('Никто не читал'), pool.filter((b) => !(b.readBy || '')).length),
   ].join('');
 }
 
@@ -666,11 +773,11 @@ function renderCategories() {
   const seg = (value, label, n) => `<button class="seg${catFilter === value ? ' on' : ''}" data-cat="${value ?? '*'}">${label}${n === null ? '' : ` <span>${n}</span>`}</button>`;
   $('categories').hidden = books.length === 0;
   $('categories').innerHTML = [
-    seg(null, 'Все', null),
+    seg(null, t('Все'), null),
     seg('fiction', CATEGORIES.fiction, counts.fiction),
     seg('nonfiction', CATEGORIES.nonfiction, counts.nonfiction),
     seg('kids', CATEGORIES.kids, counts.kids),
-    counts[''] ? seg('', 'Без категории', counts['']) : '',
+    counts[''] ? seg('', t('Без категории'), counts['']) : '',
   ].join('');
 }
 
@@ -684,9 +791,9 @@ function renderLocations() {
   const chip = (value, label, n) => `<button class="chip${locFilter === value ? ' on' : ''}" data-loc="${value === null ? '*' : esc(value)}"${value ? ` data-color="${locColor(value)}"` : ''}>${esc(label)} <span>${n}</span></button>`;
   $('locations').hidden = locs.length === 0;
   $('locations').innerHTML = locs.length === 0 ? '' : [
-    chip(null, 'Все', pool.length),
-    ...locs.filter(([name]) => count(name) || name === locFilter).map(([name]) => chip(name, name, count(name))),
-    unplaced ? chip('', 'Без места', unplaced) : '',
+    chip(null, t('Все'), pool.length),
+    ...locs.filter(([name]) => count(name) || name === locFilter).map(([name]) => chip(name, roomLabel(name), count(name))),
+    unplaced ? chip('', t('Без места'), unplaced) : '',
   ].join('');
 }
 
@@ -720,7 +827,7 @@ function render() {
       <span class="label">
         <span class="title">${esc(b.title)}</span>
         <span class="sub">${esc(b.authors || b.year || '')}</span>
-        ${b.location && locFilter === null ? `<span class="loc-tag" data-color="${locColor(b.location)}">${esc(b.location)}</span>` : ''}
+        ${b.location && locFilter === null ? `<span class="loc-tag" data-color="${locColor(b.location)}">${esc(roomLabel(b.location))}</span>` : ''}
       </span>
     </button>`;
   // Two or more visible books of one series stand as a single stack where the first of them would be.
@@ -740,7 +847,7 @@ function render() {
     }).join('');
   };
   const stackHtml = (k, members) => `
-    <button class="book stack" data-series="${esc(k)}" aria-label="Серия «${esc(members[0].series)}», ${members.length} ${plural(members.length, BOOK_FORMS)}">
+    <button class="book stack" data-series="${esc(k)}" aria-label="${t('Серия «{name}»', { name: esc(members[0].series) })}, ${members.length} ${plural(members.length, BOOK_FORMS)}">
       <span class="stand"><span class="stack-covers">${members.slice(0, 3).map((b, depth) => `<span class="cover stack-cover" data-depth="${depth}">${coverInner(b, index++ >= 12)}</span>`).reverse().join('')}</span></span>
       <span class="label">
         <span class="title">${esc(members[0].series)}</span>
@@ -751,23 +858,23 @@ function render() {
   const addBook = token && !q ? `
     <button class="book add-book" data-add-book>
       <span class="stand"><span class="cover add-cover">${PLUS_LARGE}</span></span>
-      <span class="label"><span class="title">Добавить новую книгу</span></span>
+      <span class="label"><span class="title">${t('Добавить новую книгу')}</span></span>
     </button>` : '';
   // Two shelves: Russian books first, then other languages. Titles appear only when both shelves have books.
   // Children's books get their own shelf at the bottom; the rest split by language.
   const grown = shown.filter((b) => b.category !== 'kids');
   const russian = grown.filter(isRussian), other = grown.filter((b) => !isRussian(b));
   const kids = shown.filter((b) => b.category === 'kids');
-  const sections = [['На русском', russian], ['На других языках', other]].filter(([, list]) => list.length);
+  const sections = [[t('На русском'), russian], [t('На других языках'), other]].filter(([, list]) => list.length);
   const titled = sections.length > 1 || (sections.length && kids.length);
   let html;
   const kidsShelf = kids.length ? `
     <section class="shelf-section kids-section">
-      <h2 class="shelf-title kids-title">${BALLOON}Полка Феди</h2>
+      <h2 class="shelf-title kids-title">${BALLOON}${t('Полка Феди')}</h2>
       <div class="shelf kids-shelf">${withStacks(kids, true)}${sections.length ? '' : addBook}</div>
     </section>` : '';
   if (!sections.length && !kids.length) {
-    html = addBook ? `<div class="shelf">${addBook}</div>` : (books.length ? '<p class="empty">Ничего не найдено.</p>' : '');
+    html = addBook ? `<div class="shelf">${addBook}</div>` : (books.length ? `<p class="empty">${t('Ничего не найдено.')}</p>` : '');
   } else {
     html = sections.map(([title, list], i) => `
       <section class="shelf-section">
@@ -1073,9 +1180,9 @@ function closeFan() {
 let editing = null; // { book, isNew, fromScan }
 
 function openSheet(book, { isNew = false, fromScan = false, note = '', warn = false, detail = '' } = {}) {
-  editing = { book, isNew, fromScan };
+  editing = { book, isNew, fromScan, lang }; // the description being edited stays in the language it was opened in
   const f = $('bookForm');
-  for (const name of FIELDS) f.elements[name].value = book[name] || '';
+  for (const name of FIELDS) f.elements[name].value = book[fieldKey(name)] || '';
   // New books default to the last location used, so a whole shelf can be scanned in a row.
   if (isNew && !book.location) f.elements.location.value = localStorage.getItem(LAST_LOC_KEY) || '';
   renderLocTags();
@@ -1092,14 +1199,14 @@ function openSheet(book, { isNew = false, fromScan = false, note = '', warn = fa
   $('grLink').hidden = !book.goodreadsUrl;
   if (book.goodreadsUrl) {
     $('grLink').href = book.goodreadsUrl;
-    $('grLink').textContent = `Goodreads ${book.rating.toFixed(2)} · ${book.ratingsCount.toLocaleString('ru-RU')} ${plural(book.ratingsCount, ['оценка', 'оценки', 'оценок'])}`;
+    $('grLink').textContent = `Goodreads ${book.rating.toFixed(2)} · ${book.ratingsCount.toLocaleString(locale())} ${plural(book.ratingsCount, ['оценка', 'оценки', 'оценок'])}`;
   }
   for (const el of f.elements) if (el.name) el.readOnly = !token; // visitors get a read-only view
-  $('cancelBtn').textContent = token ? 'Отмена' : 'Закрыть';
-  $('saveBtn').textContent = isNew ? 'Добавить' : 'Сохранить';
+  $('cancelBtn').textContent = t(token ? 'Отмена' : 'Закрыть');
+  $('saveBtn').textContent = t(isNew ? 'Добавить' : 'Сохранить');
   $('deleteBtn').hidden = isNew;
   $('saveNextBtn').hidden = !(isNew && fromScan);
-  $('aboutField').hidden = !token && !book.description;
+  $('aboutField').hidden = !token && !book[fieldKey('description')];
   $('seriesField').hidden = !token && !book.series;
   $('sheet').hidden = false;
   $('sheet').querySelector('.sheet').scrollTop = 0;
@@ -1128,7 +1235,7 @@ $('bookForm').addEventListener('submit', (e) => {
   const book = isNew ? editing.book : books.find((b) => b.id === editing.book.id) || editing.book;
   for (const name of FIELDS) {
     const v = f.elements[name].value.trim();
-    book[name] = f.elements[name].tagName === 'TEXTAREA' ? v.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n') : v.replace(/\s+/g, ' ');
+    book[fieldKey(name, editing.lang)] = f.elements[name].tagName === 'TEXTAREA' ? v.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n') : v.replace(/\s+/g, ' ');
   }
   if (editing.cover !== undefined) book.cover = editing.cover; // chosen in the cover picker
   // Reuse an existing location's spelling when only the case differs ("гостиная" → "Гостиная").
@@ -1142,12 +1249,12 @@ $('bookForm').addEventListener('submit', (e) => {
   // A book typed in by hand may already be on the shelf under the same title and author, or the same ISBN.
   if (isNew) {
     const twin = books.find((x) => (book.isbn && x.isbn === book.isbn) || (book.title && bookKey(x) === bookKey(book)));
-    if (twin && !confirm(`«${twin.title}» уже есть в библиотеке${twin.location ? ` (${twin.location})` : ''}. Всё равно добавить ещё один экземпляр?`)) return;
+    if (twin && !confirm(t('«{title}» уже есть в библиотеке{room}. Всё равно добавить ещё один экземпляр?', { title: twin.title, room: twin.location ? ` (${roomLabel(twin.location)})` : '' }))) return;
   }
   const next = e.submitter?.value === 'next';
   saveBooks(book);
   closeSheet();
-  toast(isNew ? 'Добавлено' : 'Сохранено');
+  toast(t(isNew ? 'Добавлено' : 'Сохранено'));
   if (next) startScanner();
   if (isNew) updateRatings();
 });
@@ -1155,7 +1262,7 @@ $('bookForm').addEventListener('submit', (e) => {
 $('cancelBtn').addEventListener('click', closeSheet);
 $('sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet') closeSheet(); });
 $('deleteBtn').addEventListener('click', () => {
-  if (!confirm(`Удалить «${editing.book.title}»?`)) return;
+  if (!confirm(t('Удалить «{title}»?', { title: editing.book.title }))) return;
   deleteBook(editing.book.id);
   closeSheet();
 });
@@ -1174,14 +1281,14 @@ $('coverBtn').addEventListener('click', async () => {
   const sheetBook = editing.book;
   const picker = $('coverPicker');
   picker.hidden = false;
-  picker.innerHTML = '<p class="results-state">Ищу обложки…</p>';
+  picker.innerHTML = `<p class="results-state">${t('Ищу обложки…')}</p>`;
   const options = await coverOptions(sheetBook);
   if (editing?.book !== sheetBook) return; // sheet closed or another book opened meanwhile
   const chosen = editing.cover ?? sheetBook.cover ?? '';
   picker.innerHTML = [...options, ''].map((url) => `
-    <button type="button" class="cover-option${url === chosen ? ' on' : ''}" data-url="${esc(url)}" aria-label="${url ? 'Обложка' : 'Без обложки'}">
+    <button type="button" class="cover-option${url === chosen ? ' on' : ''}" data-url="${esc(url)}" aria-label="${t(url ? 'Обложка' : 'Без обложки')}">
       <span class="cover">${coverInner({ ...sheetBook, cover: url })}</span>
-    </button>`).join('') + (options.length ? '' : '<p class="results-state">Других обложек не нашлось.</p>');
+    </button>`).join('') + (options.length ? '' : `<p class="results-state">${t('Других обложек не нашлось.')}</p>`);
 });
 
 /* ---------- cover photo ---------- */
@@ -1197,11 +1304,11 @@ $('photoInput').addEventListener('change', async (e) => {
   try {
     dataUrl = await cropPhoto(file);
   } catch {
-    toast('Не удалось открыть фото', 3000);
+    toast(t('Не удалось открыть фото'), 3000);
     return;
   }
   if (!dataUrl) return; // crop cancelled
-  toast('Загружаю фото…', 0);
+  toast(t('Загружаю фото…'), 0);
   try {
     const name = `covers/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
     await github(`contents/${name}`, {
@@ -1216,9 +1323,9 @@ $('photoInput').addEventListener('change', async (e) => {
       settleCovers($('fCover'));
       $('coverPicker').hidden = true;
     }
-    toast('Фото загружено — нажмите «Сохранить»', 3000);
+    toast(t('Фото загружено — нажмите «Сохранить»'), 3000);
   } catch (err) {
-    toast('Не удалось сохранить фото в GitHub', 3500);
+    toast(t('Не удалось сохранить фото в GitHub'), 3500);
   }
 });
 
@@ -1412,9 +1519,9 @@ function renderLocTags() {
   if (current && !names.includes(current)) names.push(current);
   const shown = token ? names : names.filter((n) => n === current);
   $('locTags').innerHTML = shown.map((n) =>
-    `<button type="button" class="chip${n === current ? ' on' : ''}" aria-pressed="${n === current}" data-loc="${esc(n)}" data-color="${locColor(n)}">${esc(n)}</button>`).join('') +
-    (token ? `<button type="button" class="chip chip-add" data-add>${PLUS}Новое место</button>` : '') +
-    (!token && !current ? '<span class="tags-empty">не указано</span>' : '');
+    `<button type="button" class="chip${n === current ? ' on' : ''}" aria-pressed="${n === current}" data-loc="${esc(n)}" data-color="${locColor(n)}">${esc(roomLabel(n))}</button>`).join('') +
+    (token ? `<button type="button" class="chip chip-add" data-add>${PLUS}${t('Новое место')}</button>` : '') +
+    (!token && !current ? `<span class="tags-empty">${t('не указано')}</span>` : '');
 }
 
 // Category: two tags, one can be chosen; visitors only see the book's category.
@@ -1423,7 +1530,7 @@ function renderCatTags() {
   const shown = Object.entries(CATEGORIES).filter(([key]) => token || key === current);
   $('catTags').innerHTML = shown.map(([key, label]) =>
     `<button type="button" class="chip${key === current ? ' on' : ''}" aria-pressed="${key === current}" data-cat="${key}">${label}</button>`).join('') +
-    (!token && !current ? '<span class="tags-empty">не указана</span>' : '');
+    (!token && !current ? `<span class="tags-empty">${t('не указана')}</span>` : '');
 }
 
 // Readers: each person has a read toggle with a check mark and their own five stars.
@@ -1438,10 +1545,10 @@ function renderReadTags() {
   $('readTags').innerHTML = shown.map(([key, name]) => {
     const on = current.includes(key);
     const stars = +f[RATING_FIELD[key]].value || 0;
-    const starBtns = [1, 2, 3, 4, 5].map((n) => `<button type="button" class="star${n <= stars ? ' on' : ''}" data-reader="${key}" data-stars="${n}" aria-label="${name}: ${n} из 5"${token ? '' : ' disabled'}>${STAR_LARGE}</button>`).join('');
+    const starBtns = [1, 2, 3, 4, 5].map((n) => `<button type="button" class="star${n <= stars ? ' on' : ''}" data-reader="${key}" data-stars="${n}" aria-label="${name}: ${n} ${t('из')} 5"${token ? '' : ' disabled'}>${STAR_LARGE}</button>`).join('');
     return `<div class="reader-row"><button type="button" class="chip read-chip${on ? ' on' : ''}" aria-pressed="${on}" data-reader="${key}">${CHECK}${name}</button>` +
-      (token || stars ? `<span class="stars" role="group" aria-label="Оценка: ${name}">${starBtns}</span>` : '') + '</div>';
-  }).join('') + (!token && !current.length ? '<span class="tags-empty">пока никто</span>' : '');
+      (token || stars ? `<span class="stars" role="group" aria-label="${t('Оценка:')} ${name}">${starBtns}</span>` : '') + '</div>';
+  }).join('') + (!token && !current.length ? `<span class="tags-empty">${t('пока никто')}</span>` : '');
 }
 
 $('readTags').addEventListener('click', (e) => {
@@ -1480,7 +1587,7 @@ $('locTags').addEventListener('click', (e) => {
     renderLocTags();
     return;
   }
-  chip.outerHTML = '<input class="tag-input" placeholder="Название комнаты" enterkeyhint="done" autocomplete="off">';
+  chip.outerHTML = `<input class="tag-input" placeholder="${t('Название комнаты')}" enterkeyhint="done" autocomplete="off">`;
   const input = $('locTags').querySelector('.tag-input');
   input.focus();
   const commit = () => {
@@ -1502,7 +1609,7 @@ let busy = false;
 
 async function addByCode(raw, fromScan = false) {
   const isbn = normalizeCode(raw);
-  if (!isbn) { toast('Это не похоже на ISBN'); return; }
+  if (!isbn) { toast(t('Это не похоже на ISBN')); return; }
 
   const existing = books.find((b) => b.isbn === isbn);
   if (existing) {
@@ -1512,7 +1619,7 @@ async function addByCode(raw, fromScan = false) {
   }
   if (busy) return;
   busy = true;
-  toast('Ищу книгу…', 0);
+  toast(t('Ищу книгу…'), 0);
   const { found: data, report } = await lookup(isbn);
   busy = false;
   hideToast();
@@ -1522,7 +1629,7 @@ async function addByCode(raw, fromScan = false) {
   openSheet(book, {
     isNew: true,
     fromScan,
-    note: data ? '' : (isIsbn(isbn) ? 'Не нашлось в интернете — заполните сами' : 'Это не ISBN — заполните сами'),
+    note: data ? '' : t(isIsbn(isbn) ? 'Не нашлось в интернете — заполните сами' : 'Это не ISBN — заполните сами'),
     detail: data ? '' : report.join(' · '),
   });
 }
@@ -1555,7 +1662,7 @@ $('addManual').addEventListener('click', () => {
 });
 $('addBlank').addEventListener('click', () => {
   closeAddSheet();
-  openSheet({ title: $('isbnInput').value.trim() }, { isNew: true, note: 'Заполните данные книги' });
+  openSheet({ title: $('isbnInput').value.trim() }, { isNew: true, note: t('Заполните данные книги') });
   $('isbnInput').value = '';
 });
 
@@ -1579,7 +1686,7 @@ $('isbnForm').addEventListener('submit', (e) => {
   $('isbnInput').blur();
   closeAddSheet();
   if (normalizeCode(v)) addByCode(v);
-  else if (/^[\d\s-]{9,}x?$/i.test(v)) toast('Это не похоже на ISBN'); // a mistyped number, not a title like «1984»
+  else if (/^[\d\s-]{9,}x?$/i.test(v)) toast(t('Это не похоже на ISBN')); // a mistyped number, not a title like «1984»
   else searchByTitle(v);
 });
 
@@ -1625,7 +1732,7 @@ let searchRun = 0;
 async function searchByTitle(q) {
   const run = ++searchRun;
   $('resultsTitle').textContent = `«${q}»`;
-  $('resultsList').innerHTML = '<p class="results-state">Ищу…</p>';
+  $('resultsList').innerHTML = `<p class="results-state">${t('Ищу…')}</p>`;
   $('manualBtn').dataset.title = q;
   $('results').hidden = false;
 
@@ -1643,7 +1750,7 @@ async function searchByTitle(q) {
   }).slice(0, 12);
 
   if (!searchResults.length) {
-    $('resultsList').innerHTML = `<p class="results-state">${lists.every((l) => l === null) ? 'Поиск не отвечает — проверьте интернет.' : 'Ничего не нашлось. Попробуйте другое написание или добавьте вручную.'}</p>`;
+    $('resultsList').innerHTML = `<p class="results-state">${t(lists.every((l) => l === null) ? 'Поиск не отвечает — проверьте интернет.' : 'Ничего не нашлось. Попробуйте другое написание или добавьте вручную.')}</p>`;
     return;
   }
   $('resultsList').innerHTML = searchResults.map((b, i) => {
@@ -1653,14 +1760,14 @@ async function searchByTitle(q) {
       <span class="r-text">
         <span class="r-title">${esc(b.title)}</span>
         <span class="r-sub">${esc([b.authors, b.year, b.publisher].filter(Boolean).join(' · '))}</span>
-        ${have ? '<span class="r-have">Уже есть в библиотеке</span>' : ''}
+        ${have ? `<span class="r-have">${t('Уже есть в библиотеке')}</span>` : ''}
       </span>
     </button>`;
   }).join('');
 }
 
 // Where the copy you already have stands, so it can be found (or the new one left in the shop).
-const duplicateNote = (b) => `Уже есть в библиотеке${b.location ? ` — стоит: ${b.location}` : ''}`;
+const duplicateNote = (b) => t('Уже есть в библиотеке') + (b.location ? ` — ${t('стоит:')} ${roomLabel(b.location)}` : '');
 
 function findInLibrary(b) {
   return books.find((x) => (b.isbn && x.isbn === b.isbn) || bookKey(x) === bookKey(b));
@@ -1697,7 +1804,7 @@ $('resultsList').addEventListener('click', async (e) => {
 
 $('manualBtn').addEventListener('click', (e) => {
   $('results').hidden = true;
-  openSheet({ title: e.currentTarget.dataset.title }, { isNew: true, note: 'Заполните данные книги' });
+  openSheet({ title: e.currentTarget.dataset.title }, { isNew: true, note: t('Заполните данные книги') });
 });
 $('resultsClose').addEventListener('click', () => { $('results').hidden = true; searchRun++; });
 $('results').addEventListener('click', (e) => { if (e.target.id === 'results') { $('results').hidden = true; searchRun++; } });
@@ -1755,12 +1862,12 @@ function getOcrWorker() {
 
 async function startScanner() {
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-    toast('Камера работает только по https. Введите ISBN вручную.', 4000);
+    toast(t('Камера работает только по https. Введите ISBN вручную.'), 4000);
     return;
   }
   setScanMode(scanMode);
   $('scanner').hidden = false;
-  $('scanHint').textContent = 'Включаю камеру…';
+  $('scanHint').textContent = t('Включаю камеру…');
   try {
     const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
     if ($('scanner').hidden) { s.getTracks().forEach((t) => t.stop()); return; } // closed while starting
@@ -1771,7 +1878,7 @@ async function startScanner() {
     runScan();
   } catch (err) {
     stopScanner();
-    toast(err.name === 'NotAllowedError' ? 'Нет доступа к камере' : 'Не удалось включить камеру', 3500);
+    toast(t(err.name === 'NotAllowedError' ? 'Нет доступа к камере' : 'Не удалось включить камеру'), 3500);
   }
 }
 
@@ -1789,17 +1896,17 @@ async function runScan() {
   const video = $('video');
   try {
     if (scanMode === 'barcode') {
-      $('scanHint').textContent = 'Наведите на штрихкод';
+      $('scanHint').textContent = t('Наведите на штрихкод');
       barcodeLoop(await getDetector(), video, alive);
     } else {
-      $('scanHint').textContent = 'Загружаю распознавание текста…';
+      $('scanHint').textContent = t('Загружаю распознавание текста…');
       const worker = await getOcrWorker();
       if (!alive()) return;
-      $('scanHint').textContent = 'Поместите номер ISBN в рамку';
+      $('scanHint').textContent = t('Поместите номер ISBN в рамку');
       textLoop(worker, video, alive);
     }
   } catch {
-    if (alive()) $('scanHint').textContent = 'Сканер не загрузился — проверьте интернет';
+    if (alive()) $('scanHint').textContent = t('Сканер не загрузился — проверьте интернет');
   }
 }
 
@@ -1914,8 +2021,8 @@ function pickPool() {
 function renderPick(reroll = true) {
   if (pickPrefs.cat === 'kids') pickPrefs.cat = ''; // children's books aren't offered (a choice saved before)
   const seg = (group, value, label) => `<button type="button" class="seg${pickPrefs[group] === value ? ' on' : ''}" data-${group}="${value}">${label}</button>`;
-  $('pickWho').innerHTML = seg('who', 'any', 'Кому угодно') + Object.entries(READERS).map(([k, n]) => seg('who', k, n)).join('');
-  $('pickCat').innerHTML = seg('cat', '', 'Любая') + Object.entries(CATEGORIES).filter(([k]) => k !== 'kids').map(([k, n]) => seg('cat', k, n)).join('');
+  $('pickWho').innerHTML = seg('who', 'any', t('Кому угодно')) + Object.entries(READERS).map(([k, n]) => seg('who', k, n)).join('');
+  $('pickCat').innerHTML = seg('cat', '', t('Любая')) + Object.entries(CATEGORIES).filter(([k]) => k !== 'kids').map(([k, n]) => seg('cat', k, n)).join('');
   const pool = pickPool();
   if (reroll || !pool.includes(pickCurrent)) {
     const others = pool.length > 1 ? pool.filter((b) => b !== pickCurrent) : pool;
@@ -1925,7 +2032,7 @@ function renderPick(reroll = true) {
   $('pickAgain').disabled = pool.length < 2;
   $('pickOpen').hidden = !b;
   if (!b) {
-    $('pickCard').innerHTML = `<p class="pick-empty">${pickPrefs.who === 'any' ? 'Все книги уже кто-то прочитал' : `${READERS[pickPrefs.who]} прочитал${pickPrefs.who === 'alina' ? 'а' : ''} всё`} — пора за новыми!</p>`;
+    $('pickCard').innerHTML = `<p class="pick-empty">${pickPrefs.who === 'any' ? t('Все книги уже кто-то прочитал') : t(pickPrefs.who === 'alina' ? 'Алина прочитала всё' : 'Паша прочитал всё')} — ${t('пора за новыми!')}</p>`;
     return;
   }
   $('pickCard').innerHTML = `
@@ -1933,9 +2040,9 @@ function renderPick(reroll = true) {
     <div class="pick-text">
       <p class="pick-title">${esc(b.title)}</p>
       <p class="pick-author">${esc([b.authors, b.year].filter(Boolean).join(', '))}</p>
-      ${b.description ? `<p class="pick-desc">${esc(b.description)}</p>` : ''}
-      <p class="pick-meta">${b.pages ? `<span>${b.pages} ${plural(+b.pages, ['страница', 'страницы', 'страниц'])}</span>` : ''}${b.location ? `<span class="loc-tag" data-color="${locColor(b.location)}">${esc(b.location)}</span>` : ''}</p>
-      <p class="pick-left">Ещё ${pool.length - 1} ${plural(pool.length - 1, ['книга', 'книги', 'книг'])} на выбор</p>
+      ${b[fieldKey('description')] ? `<p class="pick-desc">${esc(b[fieldKey('description')])}</p>` : ''}
+      <p class="pick-meta">${b.pages ? `<span>${b.pages} ${plural(+b.pages, ['страница', 'страницы', 'страниц'])}</span>` : ''}${b.location ? `<span class="loc-tag" data-color="${locColor(b.location)}">${esc(roomLabel(b.location))}</span>` : ''}</p>
+      <p class="pick-left">${t('Ещё {count} {books} на выбор', { count: pool.length - 1, books: plural(pool.length - 1, BOOK_FORMS) })}</p>
     </div>`;
   settleCovers($('pickCard'));
   $('pickCard').classList.remove('deal');
@@ -1972,7 +2079,7 @@ function bars(rows, { color = () => '', onClick = null } = {}) {
 
 function renderStats() {
   const n = books.length;
-  const num = (v) => v.toLocaleString('ru-RU');
+  const num = (v) => v.toLocaleString(locale());
   const pagesOf = (list) => list.reduce((sum, b) => sum + (parseInt(b.pages, 10) || 0), 0);
   const authors = new Set(books.flatMap((b) => (b.authors || '').split(',').map((a) => a.trim()).filter(Boolean)));
   const readBy = (k) => books.filter((b) => hasRead(b, k));
@@ -1983,7 +2090,7 @@ function renderStats() {
 
   const tiles = [
     [num(n), plural(n, BOOK_FORMS)],
-    [num(pagesOf(books)), 'страниц на полках'],
+    [num(pagesOf(books)), t('страниц на полках')],
     [num(authors.size), plural(authors.size, ['автор', 'автора', 'авторов'])],
     [num(locations().length), plural(locations().length, ['комната', 'комнаты', 'комнат'])],
   ];
@@ -1993,9 +2100,9 @@ function renderStats() {
     const stars = books.map((b) => +b[RATING_FIELD[k]]).filter(Boolean);
     return `<div class="reader-stat">
       <p class="reader-name">${name}</p>
-      <p class="reader-big">${list.length}<span> из ${n}</span></p>
+      <p class="reader-big">${list.length}<span> ${t('из')} ${n}</span></p>
       <span class="progress"><span style="width:${n ? (list.length / n * 100).toFixed(1) : 0}%"></span></span>
-      <p class="reader-sub">${num(pagesOf(list))} страниц${stars.length ? ` · средняя оценка ${avg(stars).toFixed(1)}★` : ''}</p>
+      <p class="reader-sub">${num(pagesOf(list))} ${t('страниц')}${stars.length ? ` · ${t('средняя оценка')} ${avg(stars).toFixed(1)}★` : ''}</p>
     </div>`;
   }).join('');
 
@@ -2006,33 +2113,33 @@ function renderStats() {
   const byFamily = books.filter(family).sort((a, b) => family(b) - family(a));
   const record = (label, b, value) => b ? `<button type="button" class="record" data-id="${esc(b.id)}"><span class="cover">${coverInner(b, false)}</span><span><small>${label}</small><b>${esc(b.title)}</b><em>${value}</em></span></button>` : '';
 
-  const decades = count((b) => +b.year > 1000 ? `${Math.floor(b.year / 10) * 10}-е` : '').sort((a, b) => a[0].localeCompare(b[0]));
+  const decades = count((b) => +b.year > 1000 ? (lang === 'en' ? `${Math.floor(b.year / 10) * 10}s` : `${Math.floor(b.year / 10) * 10}-е`) : '').sort((a, b) => a[0].localeCompare(b[0]));
 
   $('statsBody').innerHTML = `
     <div class="stat-tiles">${tiles.map(([v, l]) => `<div class="stat-tile"><b>${v}</b><span>${l}</span></div>`).join('')}</div>
 
-    <h3 class="stats-h">Прочитали</h3>
+    <h3 class="stats-h">${t('Прочитали')}</h3>
     <div class="reader-stats">${readerCards}</div>
-    <p class="stats-note">Оба прочитали ${both.length} ${plural(both.length, BOOK_FORMS)} · никто пока не открывал ${nobody.length}</p>
+    <p class="stats-note">${t('Оба прочитали')} ${both.length} ${plural(both.length, BOOK_FORMS)} · ${t('никто пока не открывал')} ${nobody.length}</p>
 
-    <h3 class="stats-h">Категории</h3>
-    ${bars([...Object.entries(CATEGORIES).map(([k, l]) => ({ label: l, key: k, value: books.filter((b) => b.category === k).length })), { label: 'Без категории', key: '', value: books.filter((b) => !b.category).length }].filter((r) => r.value))}
+    <h3 class="stats-h">${t('Категории')}</h3>
+    ${bars([...Object.entries(CATEGORIES).map(([k, l]) => ({ label: l, key: k, value: books.filter((b) => b.category === k).length })), { label: t('Без категории'), key: '', value: books.filter((b) => !b.category).length }].filter((r) => r.value))}
 
-    <h3 class="stats-h">Комнаты</h3>
-    ${bars(count((b) => b.location).map(([l, v]) => ({ label: l, value: v })), { color: (r) => ` data-color="${locColor(r.label)}"` })}
+    <h3 class="stats-h">${t('Комнаты')}</h3>
+    ${bars(count((b) => b.location).map(([l, v]) => ({ label: roomLabel(l), key: l, value: v })), { color: (r) => ` data-color="${locColor(r.key)}"` })}
 
-    <h3 class="stats-h">Издательства</h3>
+    <h3 class="stats-h">${t('Издательства')}</h3>
     ${bars(count((b) => publisherName(b.publisher)).slice(0, 6).map(([l, v]) => ({ label: l, value: v })))}
 
-    ${decades.length ? `<h3 class="stats-h">Годы издания</h3>${bars(decades.map(([l, v]) => ({ label: l, value: v })))}` : ''}
+    ${decades.length ? `<h3 class="stats-h">${t('Годы издания')}</h3>${bars(decades.map(([l, v]) => ({ label: l, value: v })))}` : ''}
 
-    <h3 class="stats-h">Рекорды</h3>
+    <h3 class="stats-h">${t('Рекорды')}</h3>
     <div class="records">
-      ${record('Самая толстая', byPages[0], byPages[0] && `${byPages[0].pages} страниц`)}
-      ${record('Самая тонкая', byPages.at(-1), byPages.at(-1) && `${byPages.at(-1).pages} страниц`)}
-      ${record('Самое старое издание', byYear[0], byYear[0]?.year)}
-      ${record('Лучшая по Goodreads', byGoodreads[0], byGoodreads[0] && `★ ${byGoodreads[0].rating.toFixed(2)}`)}
-      ${record('Любимая в семье', byFamily[0], byFamily[0] && `★ ${family(byFamily[0]).toFixed(1)}`)}
+      ${record(t('Самая толстая'), byPages[0], byPages[0] && `${byPages[0].pages} ${t('страниц')}`)}
+      ${record(t('Самая тонкая'), byPages.at(-1), byPages.at(-1) && `${byPages.at(-1).pages} ${t('страниц')}`)}
+      ${record(t('Самое старое издание'), byYear[0], byYear[0]?.year)}
+      ${record(t('Лучшая по Goodreads'), byGoodreads[0], byGoodreads[0] && `★ ${byGoodreads[0].rating.toFixed(2)}`)}
+      ${record(t('Любимая в семье'), byFamily[0], byFamily[0] && `★ ${family(byFamily[0]).toFixed(1)}`)}
     </div>`;
   settleCovers($('statsBody'));
 }
@@ -2065,7 +2172,7 @@ function renderMap() {
       return `<i style="--spine:hsl(${h.toFixed(0)} ${(sat * 100).toFixed(0)}% ${(l * 100).toFixed(0)}%);--h:${height}px;width:${w}px"></i>`;
     }).join('');
     return `<button type="button" class="room${wide ? ' wide' : ''}"${room.name ? ` data-color="${locColor(room.name)}"` : ''} data-room="${esc(room.name)}">
-      <span class="room-head"><b>${esc(room.name || 'Без места')}</b><span>${room.n} ${plural(room.n, BOOK_FORMS)}</span></span>
+      <span class="room-head"><b>${esc(room.name ? roomLabel(room.name) : t('Без места'))}</b><span>${room.n} ${plural(room.n, BOOK_FORMS)}</span></span>
       <span class="room-shelves">${spines}</span>
     </button>`;
   }).join('');
@@ -2102,10 +2209,10 @@ $('menu').addEventListener('click', (e) => {
   if (action === 'signin') { $('signin').hidden = false; $('signinForm').elements.token.focus(); }
   if (action === 'signout') signOut();
   if (action === 'gkey') {
-    const v = prompt('Ключ Google Books API (необязательно: помогает, когда бесплатный лимит закончился). Оставьте пустым, чтобы удалить.', localStorage.getItem(GKEY_KEY) || '');
+    const v = prompt(t('Ключ Google Books API (необязательно: помогает, когда бесплатный лимит закончился). Оставьте пустым, чтобы удалить.'), localStorage.getItem(GKEY_KEY) || '');
     if (v === null) return;
     v.trim() ? localStorage.setItem(GKEY_KEY, v.trim()) : localStorage.removeItem(GKEY_KEY);
-    toast(v.trim() ? 'Ключ сохранён' : 'Ключ удалён');
+    toast(v.trim() ? t('Ключ сохранён') : t('Ключ удалён'));
   }
 });
 
@@ -2128,9 +2235,9 @@ $('importFile').addEventListener('change', async (e) => {
     const ids = new Set(books.map((b) => b.id));
     const fresh = incoming.filter((b) => b && b.id && b.title && !ids.has(b.id));
     saveBooks(fresh);
-    toast(`Импортировано: ${fresh.length} ${plural(fresh.length, BOOK_FORMS)}`);
+    toast(`${t('Импортировано:')} ${fresh.length} ${plural(fresh.length, BOOK_FORMS)}`);
   } catch {
-    toast('Это не файл резервной копии');
+    toast(t('Это не файл резервной копии'));
   }
 });
 
@@ -2153,6 +2260,20 @@ $('categories').addEventListener('click', (e) => {
   if (!seg) return;
   catFilter = seg.dataset.cat === '*' ? null : seg.dataset.cat;
   render();
+});
+$('langSwitch').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn || btn.dataset.lang === lang) return;
+  lang = btn.dataset.lang;
+  try { localStorage.setItem(LANG_KEY, lang); } catch { /* storage unavailable */ }
+  translatePage();
+  heroHtml = null;
+  renderedList = null;
+  render();
+  if (!$('pickSheet').hidden) renderPick(false);
+  if (!$('statsSheet').hidden) renderStats();
+  if (!$('mapSheet').hidden) renderMap();
+  if (!$('sheet').hidden) { renderLocTags(); renderCatTags(); renderReadTags(); }
 });
 $('readers').addEventListener('click', (e) => {
   const chip = e.target.closest('.chip');
@@ -2196,11 +2317,12 @@ const COVER_FIX = 1;
 const DAY = 86400000;
 let ratingsRunning = false;
 
+translatePage();
 updateRole();
 render();
 sync();
 if (token) { backfill(); updateRatings(); }
-else if (readJson(LEGACY_KEY, []).length) toast('Книги с этого устройства перенесутся в библиотеку, когда вы войдёте (меню → Войти)', 6000);
+else if (readJson(LEGACY_KEY, []).length) toast(t('Книги с этого устройства перенесутся в библиотеку, когда вы войдёте (меню → Войти)'), 6000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') sync(); });
 
 async function updateRatings() {

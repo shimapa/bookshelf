@@ -691,3 +691,10 @@ input[readonly], textarea[readonly] { background: transparent; border-color: tra
 }
 /* every spine box is one shelf tall, painted only up to the book's own height, so rows line up with the shelves */
 .room-shelves i { display: block; height: 31px; margin-bottom: 3px; background: linear-gradient(transparent calc(100% - var(--h)), var(--spine) 0); border-radius: 1px 1px 0 0; }
+
+/* Language switch, top right next to the menu */
+.top-actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.lang-switch { display: flex; padding: 2px; background: var(--line); border-radius: 999px; }
+.lang-switch button { border: 0; background: transparent; padding: 4px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--muted); cursor: pointer; }
+.lang-switch button.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgb(40 30 20 / 0.14); }
+.lang-switch button:not(.on):hover { color: var(--ink); }

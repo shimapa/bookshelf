@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pacifico&family=Prata&display=swap">
-<link rel="stylesheet" href="app.css?v=45">
+<link rel="stylesheet" href="app.css?v=46">
 </head>
 <body>
 
@@ -25,14 +25,17 @@
     <span id="count" class="count"></span>
     <span id="syncState" class="count"></span>
   </div>
+  <div class="top-actions">
+  <div id="langSwitch" class="lang-switch" role="group" aria-label="Язык"><button type="button" data-lang="ru" lang="ru">RU</button><button type="button" data-lang="en" lang="en">EN</button></div>
   <button id="menuBtn" class="icon-btn" aria-label="Меню"><svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="4" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="16" cy="10" r="1.6"/></svg></button>
+  </div>
   <div id="menu" class="menu" hidden>
     <button data-action="export">Скачать резервную копию</button>
     <button data-action="import" class="owner-only">Загрузить резервную копию</button>
     <button data-action="gkey" class="owner-only">Ключ Google Books API…</button>
     <button data-action="signin" class="visitor-only">Войти</button>
     <button data-action="signout" class="owner-only">Выйти</button>
-    <span class="version">Версия 45</span>
+    <span class="version">Версия 46</span>
   </div>
 </header>
 
@@ -253,6 +256,6 @@
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=45"></script>
+<script src="app.js?v=46"></script>
 </body>
 </html>
