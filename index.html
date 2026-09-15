@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://images.weserv.nl">
 <link rel="preconnect" href="https://covers.openlibrary.org">
 <link rel="dns-prefetch" href="https://archive.org">
-<link rel="stylesheet" href="app.css?v=26">
+<link rel="stylesheet" href="app.css?v=27">
 </head>
 <body>
 
@@ -27,7 +27,7 @@
     <button data-action="gkey" class="owner-only">Ключ Google Books API…</button>
     <button data-action="signin" class="visitor-only">Войти</button>
     <button data-action="signout" class="owner-only">Выйти</button>
-    <span class="version">Версия 26</span>
+    <span class="version">Версия 27</span>
   </div>
 </header>
 
@@ -166,13 +166,16 @@
 
 <!-- Full-screen cover -->
 <div id="lightbox" class="lightbox" hidden>
-  <img id="lightboxImg" alt="Обложка">
+  <div id="lbTrack" class="lb-track"></div>
+  <button type="button" id="lbPrev" class="lb-nav lb-prev" aria-label="Предыдущая" hidden><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M13.5 4.5L7 11l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  <button type="button" id="lbNext" class="lb-nav lb-next" aria-label="Следующая" hidden><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M8.5 4.5L15 11l-6.5 6.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  <p id="lbCounter" class="lb-counter"></p>
   <button type="button" class="lightbox-close" aria-label="Закрыть"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M5 5l12 12M17 5L5 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
 </div>
 
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=26"></script>
+<script src="app.js?v=27"></script>
 </body>
 </html>

@@ -886,21 +886,80 @@ function largeCoverUrl(url) {
     .replace(/(images\.weserv\.nl\/\?url=[^&]*covers\.openlibrary[^&]*)&w=400/, '$1&w=1200');
 }
 
-$('fCover').addEventListener('click', () => {
+// Photos of the book beyond its cover from the Chitai-gorod gallery: page scans and contents first,
+// then square photos of the book itself. Spine-only strips are skipped; results are kept for the session.
+const pagesCache = new Map();
+
+function bookPages(isbn) {
+  if (!pagesCache.has(isbn)) {
+    pagesCache.set(isbn, (async () => {
+      const [, ...photos] = await cgGallery(isbn); // the first picture is the cover itself
+      const sizes = await Promise.all(photos.map((url) => probeImage(url)));
+      const ratio = (i) => sizes[i].w / sizes[i].h;
+      const square = (i) => ratio(i) >= 0.85 && ratio(i) <= 1.2;
+      return photos.map((url, i) => ({ url, i }))
+        .filter(({ i }) => sizes[i] && ratio(i) > 0.3 && ratio(i) < 2.5)
+        .sort((a, b) => square(a.i) - square(b.i))
+        .map(({ url }) => largeCoverUrl(url));
+    })().catch(() => { pagesCache.delete(isbn); return []; }));
+  }
+  return pagesCache.get(isbn);
+}
+
+let lightboxRun = 0;
+
+function slideHtml(src, large = '') {
+  return `<div class="lb-slide"><img src="${esc(src)}"${large ? ` data-large="${esc(large)}"` : ''} alt="" draggable="false"></div>`;
+}
+
+function updateLightboxCounter() {
+  const track = $('lbTrack'), n = track.children.length;
+  const i = Math.round(track.scrollLeft / track.clientWidth);
+  $('lbCounter').textContent = n > 1 ? `${i + 1} / ${n}` : '';
+  $('lbPrev').hidden = n < 2 || i === 0;
+  $('lbNext').hidden = n < 2 || i >= n - 1;
+}
+
+$('fCover').addEventListener('click', async () => {
   const shown = $('fCover').querySelector('img');
-  if (!shown) return; // cloth binding: nothing to enlarge
-  const big = $('lightboxImg');
-  big.src = shown.currentSrc || shown.src; // instant, then swap in the larger file once it has loaded
-  $('lightbox').hidden = false;
-  const cover = editing?.cover ?? editing?.book.cover;
+  if (!shown || !editing) return; // cloth binding: nothing to enlarge
+  const run = ++lightboxRun;
+  const book = editing.book;
+  const cover = editing.cover ?? book.cover;
   const large = cover && !localPhotos.has(cover) ? largeCoverUrl(cover) : '';
-  if (large && large !== big.src) {
+  // The cover shows at once from the loaded image; the larger file replaces it once downloaded.
+  $('lbTrack').innerHTML = slideHtml(shown.currentSrc || shown.src, large);
+  $('lbTrack').scrollLeft = 0;
+  $('lightbox').hidden = false;
+  updateLightboxCounter();
+  if (large) {
     const hi = new Image();
-    hi.onload = () => { if (!$('lightbox').hidden) big.src = large; };
+    hi.onload = () => { const img = $('lbTrack').querySelector('img[data-large]'); if (img && run === lightboxRun) img.src = large; };
     hi.src = large;
   }
+  if (!book.isbn) return;
+  const pages = await bookPages(book.isbn);
+  if (run !== lightboxRun || $('lightbox').hidden || !pages.length) return;
+  $('lbTrack').insertAdjacentHTML('beforeend', pages.map((url) => slideHtml(url)).join(''));
+  updateLightboxCounter();
 });
-$('lightbox').addEventListener('click', () => { $('lightbox').hidden = true; });
+
+function closeLightbox() {
+  lightboxRun++;
+  $('lightbox').hidden = true;
+}
+
+function stepLightbox(dir) {
+  const track = $('lbTrack');
+  track.scrollBy({ left: dir * track.clientWidth, behavior: 'smooth' });
+}
+
+$('lbTrack').addEventListener('scroll', updateLightboxCounter, { passive: true });
+$('lightbox').addEventListener('click', (e) => {
+  if (e.target.closest('#lbPrev')) return stepLightbox(-1);
+  if (e.target.closest('#lbNext')) return stepLightbox(1);
+  closeLightbox(); // a tap anywhere else closes; a swipe doesn't count as a tap
+});
 
 $('coverPicker').addEventListener('click', (e) => {
   const option = e.target.closest('.cover-option');
@@ -1395,9 +1454,10 @@ $('sort').addEventListener('change', () => {
   render();
 });
 document.addEventListener('keydown', (e) => {
+  if (!$('lightbox').hidden && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return stepLightbox(e.key === 'ArrowLeft' ? -1 : 1);
   if (e.key !== 'Escape') return;
   if (crop) crop.done(null);
-  else if (!$('lightbox').hidden) $('lightbox').hidden = true;
+  else if (!$('lightbox').hidden) closeLightbox();
   else if (!$('scanner').hidden) stopScanner();
   else if (!$('results').hidden) { $('results').hidden = true; searchRun++; }
   else if (!$('sheet').hidden) closeSheet();
