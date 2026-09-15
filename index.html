@@ -1,38 +1,38 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f7f6f3">
-<title>Bookshelf</title>
-<link rel="stylesheet" href="app.css?v=11">
+<title>Книжная полка</title>
+<link rel="stylesheet" href="app.css?v=12">
 </head>
 <body>
 
 <header class="top">
   <div class="brand">
-    <h1>Bookshelf</h1>
+    <h1>Книжная полка</h1>
     <span id="count" class="count"></span>
     <span id="syncState" class="count"></span>
   </div>
-  <button id="menuBtn" class="icon-btn" aria-label="Menu"><svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="4" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="16" cy="10" r="1.6"/></svg></button>
+  <button id="menuBtn" class="icon-btn" aria-label="Меню"><svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="4" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="16" cy="10" r="1.6"/></svg></button>
   <div id="menu" class="menu" hidden>
-    <button data-action="export">Export backup</button>
-    <button data-action="import" class="owner-only">Import backup</button>
-    <button data-action="gkey" class="owner-only">Google Books API key…</button>
-    <button data-action="signin" class="visitor-only">Sign in</button>
-    <button data-action="signout" class="owner-only">Sign out</button>
-    <span class="version">Version 11</span>
+    <button data-action="export">Скачать резервную копию</button>
+    <button data-action="import" class="owner-only">Загрузить резервную копию</button>
+    <button data-action="gkey" class="owner-only">Ключ Google Books API…</button>
+    <button data-action="signin" class="visitor-only">Войти</button>
+    <button data-action="signout" class="owner-only">Выйти</button>
+    <span class="version">Версия 12</span>
   </div>
 </header>
 
 <div class="tools">
-  <input id="search" type="search" placeholder="Search books" autocomplete="off">
-  <select id="sort" aria-label="Sort">
-    <option value="added">Recently added</option>
-    <option value="title">Title</option>
-    <option value="author">Author</option>
-    <option value="rating">Rating</option>
+  <input id="search" type="search" placeholder="Поиск книг" autocomplete="off">
+  <select id="sort" aria-label="Сортировка">
+    <option value="added">Новые</option>
+    <option value="title">По названию</option>
+    <option value="author">По автору</option>
+    <option value="rating">По оценке</option>
   </select>
 </div>
 
@@ -42,28 +42,28 @@
 <main id="list" class="shelf"></main>
 
 <div id="empty" class="empty" hidden>
-  <p class="empty-title">No books yet</p>
-  <p class="empty-hint">Tap <b>Scan</b> and point the camera at the barcode on the back cover.</p>
+  <p class="empty-title">Пока нет книг</p>
+  <p class="empty-hint">Нажмите <b>Сканировать</b> и наведите камеру на штрихкод на обороте книги.</p>
 </div>
 
 <div class="bar owner-only">
   <form id="isbnForm" class="isbn-form">
-    <input id="isbnInput" inputmode="numeric" placeholder="Type or scan ISBN" autocomplete="off">
-    <button type="submit" class="btn">Add</button>
+    <input id="isbnInput" inputmode="numeric" placeholder="ISBN" autocomplete="off">
+    <button type="submit" class="btn">Добавить</button>
   </form>
-  <button id="scanBtn" class="btn primary">Scan</button>
+  <button id="scanBtn" class="btn primary">Сканировать</button>
 </div>
 
 <!-- Camera scanner -->
 <div id="scanner" class="scanner" hidden>
   <video id="video" playsinline muted></video>
   <div id="scanModes" class="scan-modes">
-    <button type="button" data-mode="barcode">Barcode</button>
-    <button type="button" data-mode="text">ISBN text</button>
+    <button type="button" data-mode="barcode">Штрихкод</button>
+    <button type="button" data-mode="text">Номер ISBN</button>
   </div>
   <div class="frame"></div>
-  <p id="scanHint" class="scan-hint">Point at the barcode</p>
-  <button id="closeScan" class="btn close-scan">Close</button>
+  <p id="scanHint" class="scan-hint">Наведите на штрихкод</p>
+  <button id="closeScan" class="btn close-scan">Закрыть</button>
 </div>
 
 <!-- Book sheet: confirm new / edit existing -->
@@ -78,36 +78,36 @@
         <a id="grLink" class="isbn-line gr-link" target="_blank" rel="noopener" hidden></a>
       </div>
     </div>
-    <label>Title <input name="title" required></label>
-    <label>Author <input name="authors"></label>
+    <label>Название <input name="title" required></label>
+    <label>Автор <input name="authors"></label>
     <div class="row">
-      <label>Publisher <input name="publisher"></label>
-      <label class="short">Year <input name="year" inputmode="numeric"></label>
+      <label>Издательство <input name="publisher"></label>
+      <label class="short">Год <input name="year" inputmode="numeric"></label>
     </div>
-    <label>Location <input name="location" list="locationList" placeholder="e.g. Living room, shelf 2" autocomplete="off"></label>
-    <label>Notes <textarea name="notes" rows="2" placeholder="Condition, lent to…"></textarea></label>
+    <label>Место <input name="location" list="locationList" placeholder="например, Гостиная, полка 2" autocomplete="off"></label>
+    <label>Заметки <textarea name="notes" rows="2" placeholder="Состояние, кому дал почитать…"></textarea></label>
     <div class="sheet-actions">
-      <button type="button" id="deleteBtn" class="btn danger owner-only" hidden>Delete</button>
+      <button type="button" id="deleteBtn" class="btn danger owner-only" hidden>Удалить</button>
       <span class="spacer"></span>
-      <button type="button" id="cancelBtn" class="btn">Cancel</button>
-      <button type="submit" id="saveBtn" class="btn primary owner-only">Add book</button>
+      <button type="button" id="cancelBtn" class="btn">Отмена</button>
+      <button type="submit" id="saveBtn" class="btn primary owner-only">Добавить</button>
     </div>
-    <button type="submit" id="saveNextBtn" class="btn wide owner-only" value="next">Add &amp; scan next</button>
+    <button type="submit" id="saveNextBtn" class="btn wide owner-only" value="next">Добавить и сканировать дальше</button>
   </form>
 </div>
 
 <!-- Sign in: only the owner can change the library -->
 <div id="signin" class="sheet-wrap" hidden>
   <form id="signinForm" class="sheet">
-    <p class="note">Sign in to edit</p>
-    <p class="isbn-line">Paste a GitHub token that can write to <b>shimapa/bookshelf</b>. It is kept only on this device.</p>
+    <p class="note">Вход для редактирования</p>
+    <p class="isbn-line">Вставьте GitHub-токен с правом записи в <b>shimapa/bookshelf</b>. Он хранится только на этом устройстве.</p>
     <input name="username" autocomplete="username" value="shimapa" hidden>
-    <label>GitHub token <input name="token" type="password" autocomplete="current-password" required></label>
+    <label>GitHub-токен <input name="token" type="password" autocomplete="current-password" required></label>
     <p id="signinError" class="note warn" hidden></p>
     <div class="sheet-actions">
       <span class="spacer"></span>
-      <button type="button" id="signinCancel" class="btn">Cancel</button>
-      <button type="submit" class="btn primary">Sign in</button>
+      <button type="button" id="signinCancel" class="btn">Отмена</button>
+      <button type="submit" class="btn primary">Войти</button>
     </div>
   </form>
 </div>
@@ -115,6 +115,6 @@
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=11"></script>
+<script src="app.js?v=12"></script>
 </body>
 </html>

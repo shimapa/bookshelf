@@ -7,6 +7,15 @@ const POLYFILL = 'https://cdn.jsdelivr.net/npm/barcode-detector@3.2.2/ponyfill/+
 const collator = new Intl.Collator(['ru', 'en'], { sensitivity: 'base', numeric: true });
 
 const $ = (id) => document.getElementById(id);
+
+// Russian plural: plural(5, ['книга', 'книги', 'книг']) → 'книг'.
+function plural(n, [one, few, many]) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
+}
+const BOOK_FORMS = ['книга', 'книги', 'книг'];
 let locFilter = null; // null = all, '' = books without a location, otherwise a location name
 
 /* ---------- storage ---------- */
@@ -47,7 +56,7 @@ function applyOps(list, ops) {
 function persist() {
   localStorage.setItem(CACHE_KEY, JSON.stringify(remote));
   localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
-  if (token && pending.length) setSyncState('saving…');
+  if (token && pending.length) setSyncState('сохраняю…');
   render();
 }
 
@@ -105,7 +114,7 @@ async function sync() {
     setSyncState('');
     persist();
   } catch (err) {
-    setSyncState(!token ? 'offline' : err.status === 401 ? 'sign-in expired' : err.status === 403 || err.status === 404 ? 'token can’t write' : 'not saved yet');
+    setSyncState(!token ? 'нет связи' : err.status === 401 ? 'вход истёк' : err.status === 403 || err.status === 404 ? 'токен без права записи' : 'не сохранено');
   } finally {
     syncing = false;
     if (syncAgain) { syncAgain = false; sync(); }
@@ -209,10 +218,10 @@ $('signinForm').addEventListener('submit', async (e) => {
     const moved = await signIn(e.target.elements.token.value);
     $('signin').hidden = true;
     e.target.reset();
-    toast(moved ? `Signed in · ${moved} ${moved === 1 ? 'book' : 'books'} from this device added` : 'Signed in', 3000);
+    toast(moved ? `Вы вошли · добавлено ${moved} ${plural(moved, BOOK_FORMS)} с этого устройства` : 'Вы вошли', 3000);
   } catch (err) {
-    $('signinError').textContent = err.status === 401 ? 'Token not accepted' : err.status === 403 || err.status === 404
-      ? `This token can’t write to ${REPO}` : 'Could not reach GitHub';
+    $('signinError').textContent = err.status === 401 ? 'Токен не принят' : err.status === 403 || err.status === 404
+      ? `У этого токена нет права записи в ${REPO}` : 'Не удалось связаться с GitHub';
     $('signinError').hidden = false;
   } finally {
     btn.disabled = false;
@@ -393,9 +402,9 @@ async function lookup(isbn) {
     let r = null;
     try {
       r = await src(isbn);
-      report.push(`${name}: ${r ? 'found' : 'no match'}`);
+      report.push(`${name}: ${r ? 'найдено' : 'нет'}`);
     } catch (err) {
-      report.push(`${name}: error ${err.name === 'Error' ? err.message : err.name + ' ' + err.message}`);
+      report.push(`${name}: ошибка ${err.name === 'Error' ? err.message : err.name + ' ' + err.message}`);
     }
     if (!r) continue;
     found ??= {};
@@ -446,9 +455,9 @@ function renderLocations() {
   const chip = (value, label, n) => `<button class="chip${locFilter === value ? ' on' : ''}" data-loc="${value === null ? '*' : esc(value)}">${esc(label)} <span>${n}</span></button>`;
   $('locations').hidden = locs.length === 0;
   $('locations').innerHTML = locs.length === 0 ? '' : [
-    chip(null, 'All', books.length),
+    chip(null, 'Все', books.length),
     ...locs.map(([name, n]) => chip(name, name, n)),
-    unplaced ? chip('', 'No location', unplaced) : '',
+    unplaced ? chip('', 'Без места', unplaced) : '',
   ].join('');
   $('locationList').innerHTML = locs.map(([name]) => `<option value="${esc(name)}">`).join('');
 }
@@ -466,7 +475,7 @@ function render() {
   else if (sort === 'author') shown.sort((a, b) => collator.compare(a.authors || '￿', b.authors || '￿') || collator.compare(a.title, b.title));
   else shown.sort((a, b) => b.added - a.added);
 
-  $('count').textContent = books.length ? `${books.length} ${books.length === 1 ? 'book' : 'books'}` : '';
+  $('count').textContent = books.length ? `${books.length} ${plural(books.length, BOOK_FORMS)}` : '';
   $('empty').hidden = books.length > 0;
   $('list').innerHTML = shown.map((b) => `
     <button class="book" data-id="${esc(b.id)}">
@@ -477,7 +486,7 @@ function render() {
         ${b.rating ? `<span class="rating">${STAR}${b.rating.toFixed(2)}</span>` : ''}
       </span>
     </button>`).join('') ||
-    (books.length ? '<p class="empty">Nothing matches your search.</p>' : '');
+    (books.length ? '<p class="empty">Ничего не найдено.</p>' : '');
 }
 
 /* ---------- book sheet ---------- */
@@ -499,11 +508,11 @@ function openSheet(book, { isNew = false, fromScan = false, note = '', warn = fa
   $('grLink').hidden = !book.goodreadsUrl;
   if (book.goodreadsUrl) {
     $('grLink').href = book.goodreadsUrl;
-    $('grLink').textContent = `Goodreads ${book.rating.toFixed(2)} · ${book.ratingsCount.toLocaleString('ru-RU')} ratings`;
+    $('grLink').textContent = `Goodreads ${book.rating.toFixed(2)} · ${book.ratingsCount.toLocaleString('ru-RU')} ${plural(book.ratingsCount, ['оценка', 'оценки', 'оценок'])}`;
   }
   for (const el of f.elements) if (el.name) el.readOnly = !token; // visitors get a read-only view
-  $('cancelBtn').textContent = token ? 'Cancel' : 'Close';
-  $('saveBtn').textContent = isNew ? 'Add book' : 'Save';
+  $('cancelBtn').textContent = token ? 'Отмена' : 'Закрыть';
+  $('saveBtn').textContent = isNew ? 'Добавить' : 'Сохранить';
   $('deleteBtn').hidden = isNew;
   $('saveNextBtn').hidden = !(isNew && fromScan);
   $('sheet').hidden = false;
@@ -534,7 +543,7 @@ $('bookForm').addEventListener('submit', (e) => {
   const next = e.submitter?.value === 'next';
   saveBooks(book);
   closeSheet();
-  toast(isNew ? 'Added' : 'Saved');
+  toast(isNew ? 'Добавлено' : 'Сохранено');
   if (next) startScanner();
   if (isNew) updateRatings();
 });
@@ -542,7 +551,7 @@ $('bookForm').addEventListener('submit', (e) => {
 $('cancelBtn').addEventListener('click', closeSheet);
 $('sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet') closeSheet(); });
 $('deleteBtn').addEventListener('click', () => {
-  if (!confirm(`Delete “${editing.book.title}”?`)) return;
+  if (!confirm(`Удалить «${editing.book.title}»?`)) return;
   deleteBook(editing.book.id);
   closeSheet();
 });
@@ -557,23 +566,23 @@ let busy = false;
 
 async function addByCode(raw, fromScan = false) {
   const isbn = normalizeCode(raw);
-  if (!isbn) { toast('That doesn’t look like a valid ISBN'); return; }
+  if (!isbn) { toast('Это не похоже на ISBN'); return; }
 
   const existing = books.find((b) => b.isbn === isbn);
   if (existing) {
-    openSheet(existing, { note: 'Already in your library', warn: true, fromScan });
+    openSheet(existing, { note: 'Уже есть в библиотеке', warn: true, fromScan });
     return;
   }
   if (busy) return;
   busy = true;
-  toast('Looking up…', 0);
+  toast('Ищу книгу…', 0);
   const { found: data, report } = await lookup(isbn);
   busy = false;
   hideToast();
   openSheet({ isbn, ...(data || {}) }, {
     isNew: true,
     fromScan,
-    note: data ? '' : (isIsbn(isbn) ? 'Not found online — enter details' : 'Not an ISBN barcode — enter details'),
+    note: data ? '' : (isIsbn(isbn) ? 'Не нашлось в интернете — заполните сами' : 'Это не ISBN — заполните сами'),
     detail: data ? '' : report.join(' · '),
   });
 }
@@ -639,12 +648,12 @@ function getOcrWorker() {
 
 async function startScanner() {
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-    toast('Camera needs https:// or localhost. Type the ISBN instead.', 4000);
+    toast('Камера работает только по https. Введите ISBN вручную.', 4000);
     return;
   }
   setScanMode(scanMode);
   $('scanner').hidden = false;
-  $('scanHint').textContent = 'Starting camera…';
+  $('scanHint').textContent = 'Включаю камеру…';
   try {
     const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
     if ($('scanner').hidden) { s.getTracks().forEach((t) => t.stop()); return; } // closed while starting
@@ -655,7 +664,7 @@ async function startScanner() {
     runScan();
   } catch (err) {
     stopScanner();
-    toast(err.name === 'NotAllowedError' ? 'Camera permission denied' : 'Could not start camera', 3500);
+    toast(err.name === 'NotAllowedError' ? 'Нет доступа к камере' : 'Не удалось включить камеру', 3500);
   }
 }
 
@@ -673,17 +682,17 @@ async function runScan() {
   const video = $('video');
   try {
     if (scanMode === 'barcode') {
-      $('scanHint').textContent = 'Point at the barcode';
+      $('scanHint').textContent = 'Наведите на штрихкод';
       barcodeLoop(await getDetector(), video, alive);
     } else {
-      $('scanHint').textContent = 'Loading text recognition…';
+      $('scanHint').textContent = 'Загружаю распознавание текста…';
       const worker = await getOcrWorker();
       if (!alive()) return;
-      $('scanHint').textContent = 'Fit the printed ISBN number in the frame';
+      $('scanHint').textContent = 'Поместите номер ISBN в рамку';
       textLoop(worker, video, alive);
     }
   } catch {
-    if (alive()) $('scanHint').textContent = 'Scanner failed to load — check the connection';
+    if (alive()) $('scanHint').textContent = 'Сканер не загрузился — проверьте интернет';
   }
 }
 
@@ -795,10 +804,10 @@ $('menu').addEventListener('click', (e) => {
   if (action === 'signin') { $('signin').hidden = false; $('signinForm').elements.token.focus(); }
   if (action === 'signout') signOut();
   if (action === 'gkey') {
-    const v = prompt('Google Books API key (optional, improves lookups when the free quota runs out). Leave empty to remove.', localStorage.getItem(GKEY_KEY) || '');
+    const v = prompt('Ключ Google Books API (необязательно: помогает, когда бесплатный лимит закончился). Оставьте пустым, чтобы удалить.', localStorage.getItem(GKEY_KEY) || '');
     if (v === null) return;
     v.trim() ? localStorage.setItem(GKEY_KEY, v.trim()) : localStorage.removeItem(GKEY_KEY);
-    toast(v.trim() ? 'Key saved' : 'Key removed');
+    toast(v.trim() ? 'Ключ сохранён' : 'Ключ удалён');
   }
 });
 
@@ -806,7 +815,7 @@ function exportBooks() {
   const blob = new Blob([JSON.stringify(books, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `bookshelf-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `knigi-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
@@ -821,9 +830,9 @@ $('importFile').addEventListener('change', async (e) => {
     const ids = new Set(books.map((b) => b.id));
     const fresh = incoming.filter((b) => b && b.id && b.title && !ids.has(b.id));
     saveBooks(fresh);
-    toast(`Imported ${fresh.length} ${fresh.length === 1 ? 'book' : 'books'}`);
+    toast(`Импортировано: ${fresh.length} ${plural(fresh.length, BOOK_FORMS)}`);
   } catch {
-    toast('Not a valid backup file');
+    toast('Это не файл резервной копии');
   }
 });
 
@@ -864,7 +873,7 @@ updateRole();
 render();
 sync();
 if (token) { backfill(); updateRatings(); }
-else if (readJson(LEGACY_KEY, []).length) toast('Books saved on this device will move to the library when you sign in (⋯ → Sign in)', 6000);
+else if (readJson(LEGACY_KEY, []).length) toast('Книги с этого устройства перенесутся в библиотеку, когда вы войдёте (меню → Войти)', 6000);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') sync(); });
 
 async function updateRatings() {
