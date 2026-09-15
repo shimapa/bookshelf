@@ -500,13 +500,36 @@ function clothCover(b) {
 }
 
 // Cloth binding always, photo on top when there is one (it fades in on load, see the load listener).
-function coverInner(b) {
-  return clothCover(b) + (b.cover ? `<img src="${esc(b.cover)}" alt="" loading="lazy">` : '');
+function coverInner(b, lazy = true) {
+  if (!b.cover) return clothCover(b);
+  // Open Library answers every cover request with a redirect to archive.org, slow even when cached;
+  // the image proxy serves it in one cached hop. The original URL stays as a fallback.
+  const viaProxy = b.cover.includes('covers.openlibrary.org');
+  const src = viaProxy ? `${IMG_PROXY}${encodeURIComponent(b.cover)}&w=400` : b.cover;
+  return clothCover(b) + `<img src="${esc(src)}"${viaProxy ? ` data-fallback="${esc(b.cover)}"` : ''} alt=""${lazy ? ' loading="lazy"' : ''}>`;
 }
 
 // Images fire load/error without bubbling: listen in the capture phase on the whole document.
-document.addEventListener('load', (e) => { if (e.target.matches?.('.cover img')) e.target.classList.add('loaded'); }, true);
-document.addEventListener('error', (e) => { if (e.target.matches?.('.cover img')) e.target.remove(); }, true);
+// A cover that arrives late fades in; a broken one is removed so the cloth binding shows.
+document.addEventListener('load', (e) => { if (e.target.matches?.('.cover img:not(.instant)')) e.target.classList.add('loaded'); }, true);
+document.addEventListener('error', (e) => {
+  const img = e.target;
+  if (!img.matches?.('.cover img')) return;
+  if (img.dataset.fallback) { img.src = img.dataset.fallback; delete img.dataset.fallback; } else img.remove();
+}, true);
+
+// Covers already in the browser cache appear at once, with no fade. Cached images finish decoding
+// within a frame or two of being inserted, so check right away and again shortly after.
+function settleCovers(root) {
+  const settle = () => {
+    for (const img of root.querySelectorAll('.cover img:not(.loaded):not(.instant)')) {
+      if (img.complete && img.naturalWidth) img.classList.add('instant');
+    }
+  };
+  settle();
+  requestAnimationFrame(() => requestAnimationFrame(settle));
+  setTimeout(settle, 120);
+}
 
 // Distinct locations, sorted, with book counts.
 function locations() {
@@ -543,9 +566,9 @@ function render() {
 
   $('count').textContent = books.length ? `${books.length} ${plural(books.length, BOOK_FORMS)}` : '';
   $('empty').hidden = books.length > 0;
-  $('list').innerHTML = shown.map((b) => `
+  const html = shown.map((b, i) => `
     <button class="book" data-id="${esc(b.id)}">
-      <span class="stand"><span class="cover">${coverInner(b)}</span></span>
+      <span class="stand"><span class="cover">${coverInner(b, i >= 12)}</span></span>
       <span class="label">
         <span class="title">${esc(b.title)}</span>
         <span class="sub">${esc(b.authors || b.year || '')}</span>
@@ -554,7 +577,13 @@ function render() {
       </span>
     </button>`).join('') ||
     (books.length ? '<p class="empty">Ничего не найдено.</p>' : '');
+  // Re-creating the same markup would reload every cover (e.g. after a sync that changed nothing).
+  if (html === renderedList) return;
+  renderedList = html;
+  $('list').innerHTML = html;
+  settleCovers($('list'));
 }
+let renderedList = null;
 
 /* ---------- book sheet ---------- */
 
@@ -568,7 +597,8 @@ function openSheet(book, { isNew = false, fromScan = false, note = '', warn = fa
   if (isNew && !book.location) f.elements.location.value = localStorage.getItem(LAST_LOC_KEY) || '';
   renderLocTags();
   $('fIsbnText').textContent = book.isbn || '—';
-  $('fCover').innerHTML = coverInner(book);
+  $('fCover').innerHTML = coverInner(book, false);
+  settleCovers($('fCover'));
   $('coverPicker').hidden = true;
   $('sheetNote').textContent = note;
   $('sheetNote').className = 'note' + (warn ? ' warn' : '');

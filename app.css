@@ -92,7 +92,10 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
   opacity: 0; transition: opacity 0.4s ease-out;
 }
-.cover img.loaded { opacity: 1; }
+.cover img.loaded, .cover img.instant { opacity: 1; }
+.cover img.instant { transition: none; }
+/* While a photo loads the cover stays a quiet blank; the cloth binding only shows when there is no photo. */
+.cover:has(img) .cloth { visibility: hidden; }
 /* Spine crease on the left edge, so a flat image reads as a bound book. */
 .cover::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
