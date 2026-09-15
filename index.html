@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://images.weserv.nl">
 <link rel="preconnect" href="https://covers.openlibrary.org">
 <link rel="dns-prefetch" href="https://archive.org">
-<link rel="stylesheet" href="app.css?v=23">
+<link rel="stylesheet" href="app.css?v=24">
 </head>
 <body>
 
@@ -27,7 +27,7 @@
     <button data-action="gkey" class="owner-only">Ключ Google Books API…</button>
     <button data-action="signin" class="visitor-only">Войти</button>
     <button data-action="signout" class="owner-only">Выйти</button>
-    <span class="version">Версия 23</span>
+    <span class="version">Версия 24</span>
   </div>
 </header>
 
@@ -41,6 +41,7 @@
   </select>
 </div>
 
+<nav id="categories" class="segments" hidden></nav>
 <nav id="locations" class="locations" hidden></nav>
 
 <main id="list" class="shelf"></main>
@@ -92,6 +93,11 @@
     <div class="row">
       <label>Издательство <input name="publisher"></label>
       <label class="short">Год <input name="year" inputmode="numeric"></label>
+    </div>
+    <div class="field">
+      <span class="field-label">Категория</span>
+      <div id="catTags" class="tags"></div>
+      <input name="category" type="hidden">
     </div>
     <div class="field">
       <span class="field-label">Место</span>
@@ -166,6 +172,6 @@
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=23"></script>
+<script src="app.js?v=24"></script>
 </body>
 </html>

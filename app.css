@@ -130,6 +130,17 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 .rating { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .rating svg { width: 11px; height: 11px; fill: #b8862f; flex: none; }
 
+/* Category filter: a segmented control, visually distinct from the room chips below it */
+.segments {
+  display: flex; width: max-content; max-width: 100%; overflow-x: auto; scrollbar-width: none;
+  gap: 2px; padding: 3px; margin-bottom: 10px; background: var(--line); border-radius: 999px;
+}
+.segments::-webkit-scrollbar { display: none; }
+.seg { flex: none; border: 0; background: transparent; padding: 6px clamp(9px, 3vw, 14px); border-radius: 999px; font-size: 14px; color: var(--ink); cursor: pointer; white-space: nowrap; }
+.seg span { color: var(--muted); margin-left: 2px; font-variant-numeric: tabular-nums; }
+.seg.on { background: var(--card); font-weight: 600; box-shadow: 0 1px 2px rgb(40 30 20 / 0.14); }
+.seg:not(.on):hover { background: rgb(255 255 255 / 0.5); }
+
 /* Location filter chips */
 .locations { display: flex; gap: 6px; overflow-x: auto; margin: 0 -16px 8px; padding: 0 16px 4px; scrollbar-width: none; }
 .locations::-webkit-scrollbar { display: none; }

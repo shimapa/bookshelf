@@ -2,7 +2,7 @@
 
 const GKEY_KEY = 'bookshelf.googleKey';
 const LAST_LOC_KEY = 'bookshelf.lastLocation';
-const FIELDS = ['title', 'authors', 'publisher', 'year', 'location', 'notes', 'description'];
+const FIELDS = ['title', 'authors', 'publisher', 'year', 'category', 'location', 'notes', 'description'];
 const POLYFILL = 'https://cdn.jsdelivr.net/npm/barcode-detector@3.2.2/ponyfill/+esm';
 const collator = new Intl.Collator(['ru', 'en'], { sensitivity: 'base', numeric: true });
 
@@ -17,6 +17,14 @@ function plural(n, [one, few, many]) {
 }
 const BOOK_FORMS = ['книга', 'книги', 'книг'];
 let locFilter = null; // null = all, '' = books without a location, otherwise a location name
+let catFilter = null; // null = all, otherwise a CATEGORIES key
+
+const CATEGORIES = { fiction: 'Художественная', nonfiction: 'Нон-фикшн' };
+
+// Chitai-gorod: its category path names fiction explicitly ("Художественная литература", also for children's books).
+const cgCategory = (chain = []) => chain.length < 2 ? '' : chain.some((c) => /художественная литература/i.test(c)) ? 'fiction' : 'nonfiction';
+// Open Library / Google: only trust an explicit fiction-like subject; anything else stays for the owner to set.
+const subjectCategory = (subjects = []) => subjects.some((s) => /fiction|fantasy|novel|short stories|fairy tales/i.test(s)) ? 'fiction' : '';
 
 /* ---------- storage ---------- */
 
@@ -286,6 +294,7 @@ async function fromOpenLibrary(isbn) {
     publisher: b.publishers?.[0]?.name || '',
     year: (b.publish_date || '').match(/\d{4}/)?.[0] || '',
     cover: b.cover?.medium || '',
+    category: subjectCategory((b.subjects || []).map((x) => x.name)),
   };
 }
 
@@ -300,6 +309,7 @@ async function fromGoogle(isbn) {
     publisher: v.publisher || '',
     year: (v.publishedDate || '').slice(0, 4),
     cover: (v.imageLinks?.thumbnail || '').replace(/^http:/, 'https:').replace('&edge=curl', ''),
+    category: v.categories?.length ? (subjectCategory(v.categories) || 'nonfiction') : '',
   };
 }
 
@@ -333,6 +343,7 @@ async function fromChitaiGorod(isbn) {
     publisher: a.publisher?.title || '',
     year: a.yearPublishing ? String(a.yearPublishing) : '',
     cover: a.picture ? await cleanCgCover(cgImage(a.picture)) : '',
+    category: cgCategory(a.categoryChain),
   };
 }
 
@@ -542,24 +553,43 @@ function locations() {
   return [...counts].sort((a, b) => collator.compare(a[0], b[0]));
 }
 
+const inCategory = (b) => catFilter === null || (b.category || '') === catFilter;
+
+function renderCategories() {
+  const counts = { fiction: 0, nonfiction: 0, '': 0 };
+  for (const b of books) counts[b.category || ''] = (counts[b.category || ''] || 0) + 1;
+  const seg = (value, label, n) => `<button class="seg${catFilter === value ? ' on' : ''}" data-cat="${value ?? '*'}">${label}${n === null ? '' : ` <span>${n}</span>`}</button>`;
+  $('categories').hidden = books.length === 0;
+  $('categories').innerHTML = [
+    seg(null, 'Все', null),
+    seg('fiction', CATEGORIES.fiction, counts.fiction),
+    seg('nonfiction', CATEGORIES.nonfiction, counts.nonfiction),
+    counts[''] ? seg('', 'Без категории', counts['']) : '',
+  ].join('');
+}
+
 function renderLocations() {
   const locs = locations();
   if (locFilter && !locs.some(([name]) => name === locFilter)) locFilter = null;
-  const unplaced = books.filter((b) => !b.location).length;
+  // Room counts follow the chosen category.
+  const pool = books.filter(inCategory);
+  const count = (name) => pool.filter((b) => (b.location || '') === name).length;
+  const unplaced = count('');
   const chip = (value, label, n) => `<button class="chip${locFilter === value ? ' on' : ''}" data-loc="${value === null ? '*' : esc(value)}">${esc(label)} <span>${n}</span></button>`;
   $('locations').hidden = locs.length === 0;
   $('locations').innerHTML = locs.length === 0 ? '' : [
-    chip(null, 'Все', books.length),
-    ...locs.map(([name, n]) => chip(name, name, n)),
+    chip(null, 'Все', pool.length),
+    ...locs.filter(([name]) => count(name) || name === locFilter).map(([name]) => chip(name, name, count(name))),
     unplaced ? chip('', 'Без места', unplaced) : '',
   ].join('');
 }
 
 function render() {
+  renderCategories();
   renderLocations();
   const q = $('search').value.trim().toLowerCase();
   const sort = $('sort').value;
-  let shown = books.filter((b) =>
+  let shown = books.filter((b) => inCategory(b) &&
     (locFilter === null || (b.location || '') === locFilter) &&
     (!q || [b.title, b.authors, b.isbn, b.publisher, b.location, b.notes].some((f) => (f || '').toLowerCase().includes(q))));
 
@@ -600,6 +630,7 @@ function openSheet(book, { isNew = false, fromScan = false, note = '', warn = fa
   // New books default to the last location used, so a whole shelf can be scanned in a row.
   if (isNew && !book.location) f.elements.location.value = localStorage.getItem(LAST_LOC_KEY) || '';
   renderLocTags();
+  renderCatTags();
   $('fIsbnText').textContent = book.isbn || '—';
   $('fCover').innerHTML = coverInner(book, false);
   settleCovers($('fCover'));
@@ -868,6 +899,23 @@ function renderLocTags() {
     (!token && !current ? '<span class="tags-empty">не указано</span>' : '');
 }
 
+// Category: two tags, one can be chosen; visitors only see the book's category.
+function renderCatTags() {
+  const current = $('bookForm').elements.category.value;
+  const shown = Object.entries(CATEGORIES).filter(([key]) => token || key === current);
+  $('catTags').innerHTML = shown.map(([key, label]) =>
+    `<button type="button" class="chip${key === current ? ' on' : ''}" aria-pressed="${key === current}" data-cat="${key}">${label}</button>`).join('') +
+    (!token && !current ? '<span class="tags-empty">не указана</span>' : '');
+}
+
+$('catTags').addEventListener('click', (e) => {
+  const chip = e.target.closest('button');
+  if (!chip || !token) return;
+  const field = $('bookForm').elements.category;
+  field.value = field.value === chip.dataset.cat ? '' : chip.dataset.cat;
+  renderCatTags();
+});
+
 $('locTags').addEventListener('click', (e) => {
   const chip = e.target.closest('button');
   if (!chip || !token) return;
@@ -949,6 +997,7 @@ async function searchChitaiGorod(q) {
       publisher: a.publisher?.title || '',
       year: a.yearPublishing ? String(a.yearPublishing) : '',
       cover: a.picture ? `https://content.img-gorod.ru${a.picture}?width=400&height=560&fit=bounds` : '',
+      category: cgCategory(a.categoryChain),
       cgSlug: a.url.replace(/^product\//, ''), // ISBN is only in the product details, fetched when chosen
     }));
 }
@@ -1299,6 +1348,12 @@ function hideToast() { $('toast').hidden = true; }
 /* ---------- init ---------- */
 
 $('search').addEventListener('input', render);
+$('categories').addEventListener('click', (e) => {
+  const seg = e.target.closest('.seg');
+  if (!seg) return;
+  catFilter = seg.dataset.cat === '*' ? null : seg.dataset.cat;
+  render();
+});
 $('locations').addEventListener('click', (e) => {
   const chip = e.target.closest('.chip');
   if (!chip) return;
