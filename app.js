@@ -1901,20 +1901,21 @@ $('scanModes').addEventListener('click', (e) => {
 
 /* ---------- what to read ---------- */
 
-// A random book the chosen person hasn't read (or nobody has, for "anyone"), optionally of one category.
+// A random grown-up book the chosen person hasn't read (or nobody has, for "anyone"), optionally of one category.
 const PICK_KEY = 'bookshelf.pick';
 const pickPrefs = { who: 'any', cat: '', ...readJson(PICK_KEY, {}) };
 let pickCurrent = null;
 
 function pickPool() {
-  return books.filter((b) => (pickPrefs.who === 'any' ? !(b.readBy || '') : !hasRead(b, pickPrefs.who)) &&
+  return books.filter((b) => b.category !== 'kids' && (pickPrefs.who === 'any' ? !(b.readBy || '') : !hasRead(b, pickPrefs.who)) &&
     (!pickPrefs.cat || (b.category || '') === pickPrefs.cat));
 }
 
 function renderPick(reroll = true) {
+  if (pickPrefs.cat === 'kids') pickPrefs.cat = ''; // children's books aren't offered (a choice saved before)
   const seg = (group, value, label) => `<button type="button" class="seg${pickPrefs[group] === value ? ' on' : ''}" data-${group}="${value}">${label}</button>`;
   $('pickWho').innerHTML = seg('who', 'any', 'Кому угодно') + Object.entries(READERS).map(([k, n]) => seg('who', k, n)).join('');
-  $('pickCat').innerHTML = seg('cat', '', 'Любая') + Object.entries(CATEGORIES).map(([k, n]) => seg('cat', k, n)).join('');
+  $('pickCat').innerHTML = seg('cat', '', 'Любая') + Object.entries(CATEGORIES).filter(([k]) => k !== 'kids').map(([k, n]) => seg('cat', k, n)).join('');
   const pool = pickPool();
   if (reroll || !pool.includes(pickCurrent)) {
     const others = pool.length > 1 ? pool.filter((b) => b !== pickCurrent) : pool;
