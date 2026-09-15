@@ -65,7 +65,13 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
   align-items: start;
   padding-top: 12px;
 }
-.shelf > .empty { grid-column: 1 / -1; }
+/* Grouped view: one titled shelf per publisher */
+.group + .group { margin-top: 40px; }
+.group-title {
+  display: flex; align-items: baseline; gap: 8px; margin: 12px 0 4px;
+  font-size: 17px; font-weight: 650; letter-spacing: -0.01em;
+}
+.group-title span { font-size: 13px; font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 .book {
   display: flex; flex-direction: column; min-width: 0;

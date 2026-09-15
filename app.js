@@ -546,6 +546,16 @@ function settleCovers(root) {
   setTimeout(settle, 120);
 }
 
+// Publisher names as the sources spell them differ ("Scholastic Inc." / "Scholastic, Incorporated"):
+// drop corporate suffixes so one publisher makes one shelf.
+function publisherName(raw = '') {
+  return raw.trim()
+    .replace(/[,.]?\s*\b(inc|incorporated|ltd|limited|plc|llc|gmbh|co|corp|corporation|group|usa|uk)\b\.?/gi, '')
+    .replace(/\s*\b(publishers?|publishing|press|books?)\b\.?/gi, '')
+    .replace(/\s{2,}/g, ' ').replace(/[\s,.]+$/, '')
+    .replace(/^./, (c) => c.toUpperCase());
+}
+
 // Distinct locations, sorted, with book counts.
 function locations() {
   const counts = new Map();
@@ -593,24 +603,45 @@ function render() {
     (locFilter === null || (b.location || '') === locFilter) &&
     (!q || [b.title, b.authors, b.isbn, b.publisher, b.location, b.notes].some((f) => (f || '').toLowerCase().includes(q))));
 
-  if (sort === 'title') shown.sort((a, b) => collator.compare(a.title, b.title));
+  if (sort === 'publisher') shown.sort((a, b) => collator.compare(a.authors || '￿', b.authors || '￿') || collator.compare(a.title, b.title));
+  else if (sort === 'title') shown.sort((a, b) => collator.compare(a.title, b.title));
   else if (sort === 'rating') shown.sort((a, b) => (b.rating || 0) - (a.rating || 0) || collator.compare(a.title, b.title));
   else if (sort === 'author') shown.sort((a, b) => collator.compare(a.authors || '￿', b.authors || '￿') || collator.compare(a.title, b.title));
   else shown.sort((a, b) => b.added - a.added);
 
   $('count').textContent = books.length ? `${books.length} ${plural(books.length, BOOK_FORMS)}` : '';
   $('empty').hidden = books.length > 0;
-  const html = shown.map((b, i) => `
+  let index = 0;
+  const bookHtml = (b) => `
     <button class="book" data-id="${esc(b.id)}">
-      <span class="stand"><span class="cover">${coverInner(b, i >= 12)}</span></span>
+      <span class="stand"><span class="cover">${coverInner(b, index++ >= 12)}</span></span>
       <span class="label">
         <span class="title">${esc(b.title)}</span>
         <span class="sub">${esc(b.authors || b.year || '')}</span>
         ${b.rating ? `<span class="rating">${STAR}${b.rating.toFixed(2)}</span>` : ''}
         ${b.location && locFilter === null ? `<span class="loc-tag">${esc(b.location)}</span>` : ''}
       </span>
-    </button>`).join('') ||
-    (books.length ? '<p class="empty">Ничего не найдено.</p>' : '');
+    </button>`;
+  const shelf = (list) => `<div class="shelf">${list.map(bookHtml).join('')}</div>`;
+  let html;
+  if (!shown.length) {
+    html = books.length ? '<p class="empty">Ничего не найдено.</p>' : '';
+  } else if (sort === 'publisher') {
+    // One shelf per publisher, alphabetically; books without a publisher go last.
+    const groups = new Map();
+    for (const b of shown) {
+      const name = publisherName(b.publisher);
+      if (!groups.has(name)) groups.set(name, []);
+      groups.get(name).push(b);
+    }
+    html = [...groups].sort(([a], [b]) => (!a) - (!b) || collator.compare(a, b)).map(([name, list]) => `
+      <section class="group">
+        <h2 class="group-title">${esc(name || 'Издательство не указано')} <span>${list.length}</span></h2>
+        ${shelf(list)}
+      </section>`).join('');
+  } else {
+    html = shelf(shown);
+  }
   // Re-creating the same markup would reload every cover (e.g. after a sync that changed nothing).
   if (html === renderedList) return;
   renderedList = html;
@@ -1360,7 +1391,13 @@ $('locations').addEventListener('click', (e) => {
   locFilter = chip.dataset.loc === '*' ? null : chip.dataset.loc;
   render();
 });
-$('sort').addEventListener('change', render);
+// The chosen order is remembered on this device; grouping by publisher is the default.
+const SORT_KEY = 'bookshelf.sort';
+try { const saved = localStorage.getItem(SORT_KEY); if (saved && $('sort').querySelector(`option[value="${saved}"]`)) $('sort').value = saved; } catch { /* storage unavailable */ }
+$('sort').addEventListener('change', () => {
+  try { localStorage.setItem(SORT_KEY, $('sort').value); } catch { /* storage unavailable */ }
+  render();
+});
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if (crop) crop.done(null);
