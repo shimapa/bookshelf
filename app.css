@@ -555,6 +555,18 @@ html:has(.sheet-wrap:not([hidden])), html:has(.scanner:not([hidden])) { overflow
 }
 .sheet-head { display: flex; gap: 14px; align-items: center; margin-bottom: 4px; }
 .sheet-head .cover { width: 88px; flex: none; }
+/* A record's card leads with the sleeve, big, then the artist and album as a heading. */
+#sheet[data-kind="vinyl"] .sheet-head { flex-direction: column; align-items: stretch; gap: 12px; }
+#sheet[data-kind="vinyl"] .sheet-head .cover { width: min(300px, 78%); align-self: center; }
+#sheet[data-kind="vinyl"]:not(.viewing) .sheet-head .cover { width: min(190px, 56%); } /* editing needs room for the fields */
+#sheet[data-kind="vinyl"] .sheet-head > div { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+#sheet[data-kind="vinyl"] .link-btn { text-align: center; }
+.sheet-headline { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; margin: 2px 0 6px; }
+.headline-artist { margin: 0; font: 600 13px/1.2 Tektur, -apple-system, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.headline-album { margin: 0; font: 400 24px/1.2 Prata, Georgia, serif; }
+.headline-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 4px 0 0; }
+.headline-meta span { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; }
+body[data-tab="vinyl"] .headline-meta span { border-color: #3d3068; }
 .note { margin: 0 0 4px; font-weight: 600; }
 .note.warn { color: var(--danger); }
 .isbn-line { margin: 0; color: var(--muted); font-size: 13px; }

@@ -1249,6 +1249,7 @@ function openSheet(book, { isNew = false, fromScan = false, note = '', warn = fa
   renderCatTags();
   renderReadTags();
   $('fIsbnText').textContent = book.isbn || book.catno || '—';
+  $('fIsbnText').closest('.isbn-line').hidden = vinyl && !!token && !isNew; // the heading below already carries it
   $('dgLink').hidden = !book.discogsUrl;
   if (book.discogsUrl) $('dgLink').href = book.discogsUrl;
   $('fCover').className = `cover zoomable${vinyl ? ' sleeve' : ''}`;
@@ -1327,9 +1328,22 @@ function applySheetMode() {
   const edit = canEdit();
   $('sheet').classList.toggle('viewing', !edit);
   for (const el of f.elements) if (el.name) el.readOnly = !edit;
-  for (const label of f.querySelectorAll('label[data-field], label:has(input[name]), label:has(textarea[name])')) {
+  // A record being read shows its artist and album as a heading, so those fields step aside.
+  const inHeadline = ['title', 'authors', 'publisher', 'year', 'catno', 'format'];
+  const headline = !edit && isVinyl(book);
+  for (const label of f.querySelectorAll('label:has(input[name]), label:has(textarea[name])')) {
     const field = label.querySelector('input[name], textarea[name]');
-    label.hidden = !edit && !field.value.trim();
+    label.hidden = !edit && (!field.value.trim() || (headline && inHeadline.includes(field.name)));
+  }
+  for (const row of f.querySelectorAll('.row')) row.hidden = [...row.querySelectorAll('label')].every((l) => l.hidden);
+  $('sheetHeadline').hidden = !headline;
+  $('fIsbnText').closest('.isbn-line').hidden = headline;
+  if (headline) {
+    const meta = [book.year, book.publisher, book.format, book.catno].filter(Boolean);
+    $('sheetHeadline').innerHTML = `
+      <p class="headline-artist">${esc(book.authors || '')}</p>
+      <p class="headline-album">${esc(book.title || '')}</p>
+      ${meta.length ? `<p class="headline-meta">${meta.map((m) => `<span>${esc(m)}</span>`).join('')}</p>` : ''}`;
   }
   for (const field of f.querySelectorAll('.field')) field.hidden = !edit && !field.querySelector('.chip');
   $('editBtn').hidden = edit || !token;
