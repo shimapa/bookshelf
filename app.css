@@ -38,7 +38,7 @@ h1, .shelf-title, .add-title, .fan-title, .empty-title { font-family: Prata, Geo
 .top { display: flex; align-items: center; justify-content: space-between; padding: 20px 0 12px; position: relative; }
 .brand { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; min-width: 0; }
 .brand > * { white-space: nowrap; }
-h1 { margin: 0; font-size: 26px; }
+h1 { margin: 0; font-size: 26px; line-height: 34px; }
 @media (max-width: 420px) { h1 { font-size: 23px; } }
 .count { color: var(--muted); }
 .icon-btn { background: none; border: 0; line-height: 0; padding: 8px; margin-right: -8px; cursor: pointer; color: var(--muted); border-radius: 8px; }
@@ -754,7 +754,7 @@ body[data-tab="vinyl"] h1, body[data-tab="vinyl"] .shelf-title, body[data-tab="v
   -webkit-background-clip: text; background-clip: text; color: transparent;
   text-shadow: 0 0 22px rgb(255 61 154 / 0.35);
 }
-body[data-tab="vinyl"] h1 { font-size: 24px; }
+body[data-tab="vinyl"] h1 { font-size: 24px; line-height: 34px; }
 @media (max-width: 420px) { body[data-tab="vinyl"] h1 { font-size: 19px; } }
 body[data-tab="vinyl"] .tools input, body[data-tab="vinyl"] .tools select { background: #241a44; border-color: #3d3068; color: var(--ink); }
 body[data-tab="vinyl"] .tools input::placeholder { color: #8a7cb0; }
@@ -774,10 +774,7 @@ body[data-tab="vinyl"] .hero { --hero-max: clamp(150px, 32vw, 200px); }
 body[data-tab="vinyl"] .hero-track { min-height: 0; align-items: flex-end; padding: 0 0 22px; } /* no trailing gap: the two copies must be the same width */
 body[data-tab="vinyl"] .hero-shelf {
   padding: 22px 16px 0;
-  background:
-    linear-gradient(transparent calc(100% - 22px), #ff3d9a calc(100% - 22px) calc(100% - 19px), #6c2bb5 calc(100% - 19px) calc(100% - 9px), #2a1a4d calc(100% - 9px), transparent),
-    repeating-linear-gradient(90deg, rgb(47 227 242 / 0.14) 0 1px, transparent 1px 42px) bottom / 100% 90px no-repeat,
-    linear-gradient(#1a1030, #2a1b4f);
+  background: linear-gradient(transparent calc(100% - 22px), #ff3d9a calc(100% - 22px) calc(100% - 19px), #6c2bb5 calc(100% - 19px) calc(100% - 9px), #2a1a4d calc(100% - 9px), transparent);
 }
 /* the crate slides one full copy of itself, then jumps back to the start — which looks identical */
 .hero-track.drifting { animation: crate-drift var(--drift, 90s) linear infinite; will-change: transform; }
