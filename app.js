@@ -999,6 +999,7 @@ function spineHtml(b, i) {
 function renderHero() {
   const hero = $('hero');
   if (tab === 'vinyl') return renderCrate(hero);
+  crateDrift.stop();
   const pub = (b) => publisherName(b.publisher) || '￿';
   const order = (a, b) => collator.compare(pub(a), pub(b)) || collator.compare(a.authors || '￿', b.authors || '￿') || collator.compare(a.title, b.title);
   // Grown-up books only: picture books have hardly any spine. Russian books first, a little gap, then the rest.
@@ -2231,18 +2232,63 @@ $('scanModes').addEventListener('click', (e) => {
 /* ---------- records ---------- */
 
 // The records' hero: the whole collection leaning in a crate, the way you flip through one in a shop.
+// The crate is shuffled once per visit, so the shelf looks different every time it is opened,
+// and it drifts slowly sideways on its own until someone touches it.
+let crateOrder = null;
 function renderCrate(hero) {
-  const all = tabItems().sort((a, b) => collator.compare(a.authors || '￿', b.authors || '￿') || (+a.year || 0) - (+b.year || 0));
-  if (!all.length) { hero.hidden = true; return; }
-  const html = all.map((b, i) => `
-    <button class="crate-record" data-id="${esc(b.id)}" style="--i:${i}" aria-label="${esc([b.authors, b.title].filter(Boolean).join(' — '))}">
+  const all = tabItems();
+  if (!all.length) { hero.hidden = true; crateDrift.stop(); return; }
+  if (!crateOrder || crateOrder.length !== all.length || !crateOrder.every((id) => all.some((b) => b.id === id))) {
+    crateOrder = all.map((b) => b.id).sort(() => Math.random() - 0.5);
+  }
+  const ordered = crateOrder.map((id) => all.find((b) => b.id === id)).filter(Boolean);
+  const sleeve = (b, i, clone) => `
+    <button class="crate-record" data-id="${esc(b.id)}" style="--i:${i}"${clone ? ' tabindex="-1" aria-hidden="true"' : ` aria-label="${esc([b.authors, b.title].filter(Boolean).join(' — '))}"`}>
       <span class="cover crate-sleeve">${coverInner(b, i >= 14)}</span>
-    </button>`).join('');
+    </button>`;
+  // A second copy of the row follows the first, so the drift can start over without a visible jump.
+  const html = ordered.map((b, i) => sleeve(b, i, false)).join('') + ordered.map((b, i) => sleeve(b, i, true)).join('');
   hero.hidden = false;
-  if (html === heroHtml) return;
-  heroHtml = html;
-  $('heroTrack').innerHTML = html;
-  settleCovers($('heroTrack'));
+  if (html !== heroHtml) {
+    heroHtml = html;
+    $('heroTrack').innerHTML = html;
+    settleCovers($('heroTrack'));
+  }
+  crateDrift.start();
+}
+
+// Slow sideways drift: about a sleeve every four seconds. Touching the crate stops it for a moment,
+// and it never runs when the shelf is off screen or the browser is asked to keep still.
+const crateDrift = (() => {
+  const SPEED = 14; // px per second
+  let raf = null, last = 0, pausedUntil = 0, pos = 0, applied = -1;
+  const shelf = () => $('heroShelf');
+  const step = (now) => {
+    raf = requestAnimationFrame(step);
+    const el = shelf();
+    const half = el.scrollWidth / 2;
+    const dt = Math.min(100, now - last) / 1000;
+    last = now;
+    if (now < pausedUntil || document.hidden || !half) { pos = el.scrollLeft; return; }
+    if (Math.abs(el.scrollLeft - applied) > 2) pos = el.scrollLeft; // someone scrolled it by hand
+    // scrollLeft only takes whole pixels, so the position is kept here and written out rounded.
+    pos += SPEED * dt;
+    if (pos >= half) pos -= half; // back to the same place in the first copy
+    applied = Math.round(pos);
+    el.scrollLeft = applied;
+  };
+  return {
+    start() {
+      if (raf || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      last = performance.now();
+      raf = requestAnimationFrame(step);
+    },
+    stop() { if (raf) { cancelAnimationFrame(raf); raf = null; } },
+    hold(ms = 6000) { pausedUntil = performance.now() + ms; },
+  };
+})();
+for (const ev of ['pointerdown', 'wheel', 'touchstart', 'keydown']) {
+  $('heroShelf').addEventListener(ev, () => crateDrift.hold(), { passive: true });
 }
 
 // A record's spine is its sleeve: square covers stand in a crate, newest pressings and vintage on separate shelves.
