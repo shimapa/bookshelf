@@ -745,15 +745,21 @@ input[readonly], textarea[readonly] { background: transparent; border-color: tra
 body[data-tab="books"] .vinyl-only, body[data-tab="vinyl"] .book-only { display: none; }
 /* the record spinning next to the title */
 .vinyl-icon { flex: none; animation: spin 3.6s linear infinite; }
-/* and a book leafing through itself, one frame at a time, like stop motion */
+/* and a book whose pages keep turning: each leaf swings around the spine in one smooth arc */
 .book-icon { color: var(--accent); }
-.book-icon .page { opacity: 0; animation: page-flip 2s steps(1, end) infinite; }
-.book-icon .p1 { animation-delay: 0s; }
-.book-icon .p2 { animation-delay: 0.5s; }
-.book-icon .p3 { animation-delay: 1s; }
-.book-icon .p4 { animation-delay: 1.5s; }
-@keyframes page-flip { 0%, 24.99% { opacity: 1; } 25%, 100% { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .book-icon .page { animation: none; } .book-icon .p1 { opacity: 1; } }
+.book-icon svg { perspective: 90px; overflow: visible; }
+.book-icon .leaf {
+  transform-box: fill-box; transform-origin: 0% 50%; backface-visibility: visible;
+  animation: leaf-turn 2.6s cubic-bezier(0.55, 0.05, 0.45, 0.95) infinite;
+}
+.book-icon .l2 { animation-delay: 1.3s; }
+@keyframes leaf-turn {
+  0% { transform: rotateY(0deg); opacity: 1; }
+  46% { transform: rotateY(-178deg); opacity: 1; }
+  54% { transform: rotateY(-180deg); opacity: 0; }
+  100% { transform: rotateY(-180deg); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .book-icon .leaf { animation: none; } .book-icon .l2 { opacity: 0; } }
 .vinyl-icon svg { display: block; filter: drop-shadow(0 0 6px rgb(255 61 154 / 0.45)); }
 @keyframes spin { to { rotate: 360deg; } }
 @media (prefers-reduced-motion: reduce) { .vinyl-icon { animation: none; } }
