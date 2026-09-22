@@ -36,8 +36,11 @@ h1, .shelf-title, .add-title, .fan-title, .empty-title { font-family: Prata, Geo
 
 /* Header */
 .top { display: flex; align-items: center; justify-content: space-between; padding: 20px 0 12px; position: relative; }
-.brand { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; min-width: 0; }
-.brand > * { white-space: nowrap; }
+/* Title on its own line, the counter under it — identical on both halves, so the tabs never shift. */
+.brand { display: grid; grid-template-columns: auto 1fr; align-items: center; min-width: 0; }
+.brand h1, .brand-sub { grid-column: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brand-sub { display: flex; gap: 6px; margin: 0; font-size: 14px; line-height: 18px; }
+.vinyl-icon { grid-column: 1; grid-row: 1 / span 2; margin-right: 8px; }
 h1 { margin: 0; font-size: 26px; line-height: 34px; }
 @media (max-width: 420px) { h1 { font-size: 23px; } }
 .count { color: var(--muted); }
@@ -736,7 +739,7 @@ body[data-tab="books"] .vinyl-only, body[data-tab="vinyl"] .book-only { display:
 .vinyl-icon svg { display: block; filter: drop-shadow(0 0 6px rgb(255 61 154 / 0.45)); }
 @keyframes spin { to { rotate: 360deg; } }
 @media (prefers-reduced-motion: reduce) { .vinyl-icon { animation: none; } }
-body[data-tab="vinyl"] .brand { align-items: center; column-gap: 8px; }
+
 body[data-tab="vinyl"] .quick [data-open="map"] { display: none; }
 
 /* ---------- the records tab: a night-drive palette, neon and chrome ---------- */

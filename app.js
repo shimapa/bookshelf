@@ -781,7 +781,7 @@ const isRussian = (b) => /^9785/.test(b.isbn || '') || /[а-яё]/i.test(`${b.ti
 // Distinct locations, sorted, with book counts.
 function locations() {
   const counts = new Map();
-  for (const b of books) if (b.location) counts.set(b.location, (counts.get(b.location) || 0) + 1);
+  for (const b of tabItems()) if (b.location) counts.set(b.location, (counts.get(b.location) || 0) + 1);
   return [...counts].sort((a, b) => collator.compare(a[0], b[0]));
 }
 
@@ -803,9 +803,9 @@ function renderReaderFilter() {
 
 function renderCategories() {
   const counts = { fiction: 0, nonfiction: 0, kids: 0, '': 0 };
-  for (const b of books) counts[b.category || ''] = (counts[b.category || ''] || 0) + 1;
+  for (const b of tabItems()) counts[b.category || ''] = (counts[b.category || ''] || 0) + 1;
   const seg = (value, label, n) => `<button class="seg${catFilter === value ? ' on' : ''}" data-cat="${value ?? '*'}">${label}${n === null ? '' : ` <span>${n}</span>`}</button>`;
-  $('categories').hidden = books.length === 0;
+  $('categories').hidden = tabItems().length === 0;
   $('categories').innerHTML = [
     seg(null, t('Все'), null),
     seg('fiction', CATEGORIES.fiction, counts.fiction),
@@ -819,7 +819,7 @@ function renderLocations() {
   const locs = locations();
   if (locFilter && !locs.some(([name]) => name === locFilter)) locFilter = null;
   // Room counts follow the chosen category.
-  const pool = books.filter(inCategory);
+  const pool = tabItems().filter(inCategory);
   const count = (name) => pool.filter((b) => (b.location || '') === name).length;
   const unplaced = count('');
   const chip = (value, label, n) => `<button class="chip${locFilter === value ? ' on' : ''}" data-loc="${value === null ? '*' : esc(value)}"${value ? ` data-color="${locColor(value)}"` : ''}>${esc(label)} <span>${n}</span></button>`;
@@ -1366,6 +1366,38 @@ $('editBtn').addEventListener('click', () => {
   applySheetMode();
   $('sheet').querySelector('.sheet').scrollTop = 0;
 });
+
+// Swipe down to close: the card follows the finger from its top, then either snaps back or slides away.
+function swipeToClose(wrap, close) {
+  const card = wrap.querySelector('.sheet');
+  let startY = 0, dy = 0, dragging = false;
+  card.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' || card.scrollTop > 0 || e.target.closest('input, textarea, select, .cover-picker')) return;
+    startY = e.clientY;
+    dy = 0;
+    dragging = true;
+    card.style.transition = 'none';
+  });
+  card.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    dy = Math.max(0, e.clientY - startY);
+    if (dy > 4 && card.scrollTop === 0) card.style.transform = `translateY(${dy}px)`;
+  }, { passive: true });
+  const end = () => {
+    if (!dragging) return;
+    dragging = false;
+    card.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
+    card.style.transform = '';
+    if (dy > 90) close();
+  };
+  card.addEventListener('pointerup', end);
+  card.addEventListener('pointercancel', end);
+}
+swipeToClose($('sheet'), () => closeSheet());
+swipeToClose($('pickSheet'), () => { $('pickSheet').hidden = true; });
+swipeToClose($('statsSheet'), () => { $('statsSheet').hidden = true; });
+swipeToClose($('mapSheet'), () => { $('mapSheet').hidden = true; });
+swipeToClose($('addSheet'), () => closeAddSheet());
 
 $('cancelBtn').addEventListener('click', closeSheet);
 $('sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet') closeSheet(); });
