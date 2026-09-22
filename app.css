@@ -41,7 +41,7 @@ h1, .shelf-title, .add-title, .fan-title, .empty-title { font-family: Prata, Geo
 .brand { display: grid; grid-template-columns: auto 1fr; align-items: center; min-width: 0; }
 .brand h1, .brand-sub { grid-column: 2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .brand-sub { display: flex; gap: 6px; margin: 0; font-size: 14px; line-height: 18px; }
-.vinyl-icon { grid-column: 1; grid-row: 1 / span 2; margin-right: 8px; }
+.brand-icon { grid-column: 1; grid-row: 1 / span 2; margin-right: 14px; line-height: 0; align-self: center; }
 h1 { margin: 0; font-size: 26px; line-height: 34px; }
 @media (max-width: 420px) { h1 { font-size: 23px; } }
 .count { color: var(--muted); }
@@ -744,7 +744,16 @@ input[readonly], textarea[readonly] { background: transparent; border-color: tra
 #sheet[data-kind="book"] .vinyl-only, #sheet[data-kind="vinyl"] .book-only { display: none; }
 body[data-tab="books"] .vinyl-only, body[data-tab="vinyl"] .book-only { display: none; }
 /* the record spinning next to the title */
-.vinyl-icon { flex: none; line-height: 0; align-self: center; margin-right: 2px; animation: spin 3.6s linear infinite; }
+.vinyl-icon { flex: none; animation: spin 3.6s linear infinite; }
+/* and a book leafing through itself, one frame at a time, like stop motion */
+.book-icon { color: var(--accent); }
+.book-icon .page { opacity: 0; animation: page-flip 2s steps(1, end) infinite; }
+.book-icon .p1 { animation-delay: 0s; }
+.book-icon .p2 { animation-delay: 0.5s; }
+.book-icon .p3 { animation-delay: 1s; }
+.book-icon .p4 { animation-delay: 1.5s; }
+@keyframes page-flip { 0%, 24.99% { opacity: 1; } 25%, 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .book-icon .page { animation: none; } .book-icon .p1 { opacity: 1; } }
 .vinyl-icon svg { display: block; filter: drop-shadow(0 0 6px rgb(255 61 154 / 0.45)); }
 @keyframes spin { to { rotate: 360deg; } }
 @media (prefers-reduced-motion: reduce) { .vinyl-icon { animation: none; } }
