@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pacifico&family=Prata&family=Tektur:wght@600;700&display=swap">
-<link rel="stylesheet" href="app.css?v=47">
+<link rel="stylesheet" href="app.css?v=48">
 </head>
 <body>
 
@@ -36,7 +36,7 @@
     <button data-action="dkey" class="owner-only">Токен Discogs…</button>
     <button data-action="signin" class="visitor-only">Войти</button>
     <button data-action="signout" class="owner-only">Выйти</button>
-    <span class="version">Версия 47</span>
+    <span class="version">Версия 48</span>
   </div>
 </header>
 
@@ -119,6 +119,11 @@
   </div>
   <div class="frame"></div>
   <p id="scanHint" class="scan-hint">Наведите на штрихкод</p>
+  <div class="scan-actions">
+    <button type="button" id="scanShot" class="btn">Снять фото</button>
+    <button type="button" id="scanType" class="btn">Ввести номер</button>
+  </div>
+  <input id="scanPhoto" type="file" accept="image/*" capture="environment" hidden>
   <button id="closeScan" class="btn close-scan">Закрыть</button>
 </div>
 
@@ -275,6 +280,6 @@
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=47"></script>
+<script src="app.js?v=48"></script>
 </body>
 </html>

@@ -61,7 +61,8 @@ const EN = {
   'Сфотографировать этикетку': 'Photograph the label', 'Для старых пластинок без штрихкода — по каталожному номеру': 'For older records with no barcode — by catalogue number',
   'Каталожный номер': 'Catalogue number', 'например, С60 27413 000': 'e.g. С60 27413 000', 'Формат': 'Format', 'Альбом': 'Album', 'Исполнитель': 'Artist', 'Лейбл': 'Label',
   'Слушали': 'Listened to', 'Об альбоме': 'About the album', 'Сменить конверт': 'Change the sleeve', 'Сфотографировать конверт': 'Photograph the sleeve', 'Штрихкод': 'Barcode', 'Слушать, если хочешь…': 'Listen if you want to…', 'Поместите каталожный номер в рамку': 'Fit the catalogue number in the frame',
-  'Что послушать?': 'What to listen to?', 'Сканировать штрихкод': 'Scan the barcode', 'Наведите камеру на штрихкод на конверте': 'Point the camera at the barcode on the sleeve',
+  'Что послушать?': 'What to listen to?', 'Снять фото': 'Take a photo', 'Ввести номер': 'Type the number', 'Читаю фото…': 'Reading the photo…',
+  'На фото не видно номера — попробуйте ещё раз': 'No number visible in the photo — try again', 'Не удалось прочитать фото': 'Couldn’t read the photo', 'Сканировать штрихкод': 'Scan the barcode', 'Наведите камеру на штрихкод на конверте': 'Point the camera at the barcode on the sleeve',
   'По исполнителю, альбому или с чистого листа': 'By artist, album or from scratch', 'Исполнитель, альбом или номер': 'Artist, album or catalogue number', 'Слушал Паша': 'Pasha listened', 'Слушала Алина': 'Alina listened', 'Никто не слушал': 'Nobody has listened', 'Пластинки на полке': 'Records on the shelf', 'Пока нет пластинок': 'No records yet', 'Поиск пластинок': 'Search records', 'Наши пластинки': 'Our records', 'По исполнителю': 'By artist', 'По лейблу': 'By label', 'По году': 'By year',
   'Токен Discogs…': 'Discogs token…', 'Токен сохранён': 'Token saved', 'Токен удалён': 'Token removed',
   'Токен Discogs (необязательно: с ним приходят картинки конвертов). Оставьте пустым, чтобы удалить.': 'Discogs token (optional: it brings the sleeve pictures). Leave empty to remove it.',
@@ -2042,12 +2043,13 @@ async function barcodeLoop(detector, video, alive) {
       const codes = (await detector.detect(video)).map((c) => normalizeCode(c.rawValue)).filter(Boolean);
       if (!alive()) return;
       const isbn = codes.find(isIsbn);
-      if (isbn) return onScanned(isbn);
-      // Non-ISBN barcode: require a few identical reads before accepting.
+      if (isbn && tab !== 'vinyl') return onScanned(isbn);
+      // Any other barcode has to read the same way a few times: on a record sleeve twice is enough,
+      // because the check digit already has to add up.
       if (codes[0]) {
         otherHits = codes[0] === lastOther ? otherHits + 1 : 1;
         lastOther = codes[0];
-        if (otherHits >= 4) return onScanned(codes[0]);
+        if (otherHits >= (tab === 'vinyl' ? 2 : 4)) return onScanned(codes[0]);
       }
     } catch { /* frame not ready */ }
     await sleep(120);
@@ -2135,6 +2137,31 @@ function onScanned(code) {
   if (tab === 'vinyl' && scanMode === 'text') addRecordBy('catno', code, true);
   else addByCode(code, true);
 }
+
+$('scanType').addEventListener('click', () => { stopScanner(); openAddSheet(); $('addManual').click(); });
+$('scanShot').addEventListener('click', () => $('scanPhoto').click());
+$('scanPhoto').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  $('scanHint').textContent = t('Читаю фото…');
+  try {
+    const bitmap = await createImageBitmap(file);
+    const codes = (await (await getDetector()).detect(bitmap)).map((c) => normalizeCode(c.rawValue)).filter(Boolean);
+    bitmap.close?.();
+    if (codes.length) return onScanned(codes.find(isIsbn) || codes[0]);
+    // No bars in the picture: read the number printed under them instead.
+    const worker = await getOcrWorker();
+    const { data } = await worker.recognize(file);
+    const digits = (data.text.match(/[\d\s]{11,}/g) || []).map((d) => normalizeCode(d)).filter(Boolean);
+    if (digits.length) return onScanned(digits[0]);
+    const catno = tab === 'vinyl' ? findCatnoInText(data.text) : null;
+    if (catno) { stopScanner(); return addRecordBy('catno', catno.code, true); }
+    $('scanHint').textContent = t('На фото не видно номера — попробуйте ещё раз');
+  } catch {
+    $('scanHint').textContent = t('Не удалось прочитать фото');
+  }
+});
 
 function stopScanner() {
   scanRun++;

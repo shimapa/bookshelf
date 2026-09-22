@@ -407,6 +407,9 @@ html { scrollbar-gutter: stable; overflow-x: clip; } /* locking scroll under the
 }
 .scan-modes button { border: 0; background: none; color: #fff; padding: 7px 16px; border-radius: 999px; cursor: pointer; font-weight: 550; white-space: nowrap; }
 .scan-modes button.on { background: #fff; color: #111; }
+/* when the live preview can't see the code: shoot a still, or type the number */
+.scan-actions { position: absolute; left: 0; right: 0; bottom: calc(86px + env(safe-area-inset-bottom)); display: flex; gap: 10px; justify-content: center; }
+.scan-actions .btn { background: rgb(255 255 255 / 0.14); border-color: rgb(255 255 255 / 0.35); color: #fff; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 .close-scan { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(32px + env(safe-area-inset-bottom)); }
 
 /* About the book */
