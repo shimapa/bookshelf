@@ -55,7 +55,7 @@ const EN = {
   // map
   'Нажмите на комнату, чтобы увидеть её книги': 'Tap a room to see its books',
   // records
-  'Книги': 'Books', 'Пластинки': 'Records', 'Разделы коллекции': 'Collection sections', 'Винтаж': 'Vintage', 'Современные': 'Modern',
+  'Книги': 'Books', 'Пластинки': 'Records', 'Винил': 'Vinyl', 'Разделы коллекции': 'Collection sections', 'Винтаж': 'Vintage', 'Современные': 'Modern',
   'Добавить пластинку': 'Add a record', 'Уже есть в коллекции': 'Already in the collection', 'Ищу пластинку…': 'Looking up the record…',
   'Не нашлось в Discogs — заполните сами': 'Not found on Discogs — fill it in yourself', 'Заполните данные пластинки': 'Fill in the record’s details',
   'Сфотографировать этикетку': 'Photograph the label', 'Для старых пластинок без штрихкода — по каталожному номеру': 'For older records with no barcode — by catalogue number',
