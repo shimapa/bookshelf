@@ -2371,6 +2371,7 @@ function fromDiscogs(r) {
     country: r.country || '',
     cover: r.cover_image && !r.cover_image.includes('spacer.gif') ? r.cover_image : '',
     discogsUrl: r.uri ? `https://www.discogs.com${r.uri}` : '',
+    discogsId: r.id ? String(r.id) : '',
     barcode: (r.barcode || [])[0] || '',
   };
 }
@@ -2389,6 +2390,15 @@ const pickFormat = (list) => list.find((f) => /^(LP|EP|7"|10"|12"|Box Set|Single
 // then the Cover Art Archive by barcode. Both allow being read from the page.
 async function vinylCover(rec) {
   if (rec.cover) return rec.cover;
+  // The release page carries a picture of this very pressing — sleeve, stickers and all.
+  const id = rec.discogsId || (rec.discogsUrl || '').match(/release\/(\d+)/)?.[1];
+  if (id) {
+    try {
+      const rel = await fetchJson(`https://api.discogs.com/releases/${id}`);
+      const img = (rel.images || []).find((i) => i.type === 'primary') || (rel.images || [])[0];
+      if (img?.uri) return img.uri;
+    } catch { /* rate-limited or offline */ }
+  }
   try {
     const d = await fetchJson(`https://itunes.apple.com/search?${new URLSearchParams({ term: `${rec.authors} ${rec.title}`, entity: 'album', limit: '3' })}`);
     const want = seriesKey(rec.title);
