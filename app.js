@@ -54,9 +54,22 @@ const EN = {
   'Самая толстая': 'Thickest', 'Самая тонкая': 'Thinnest', 'Самое старое издание': 'Oldest edition', 'Лучшая по Goodreads': 'Best on Goodreads', 'Любимая в семье': 'Family favourite',
   // map
   'Нажмите на комнату, чтобы увидеть её книги': 'Tap a room to see its books',
+  // records
+  'Книги': 'Books', 'Пластинки': 'Records', 'Разделы коллекции': 'Collection sections', 'Винтаж': 'Vintage', 'Современные': 'Modern',
+  'Добавить пластинку': 'Add a record', 'Уже есть в коллекции': 'Already in the collection', 'Ищу пластинку…': 'Looking up the record…',
+  'Не нашлось в Discogs — заполните сами': 'Not found on Discogs — fill it in yourself', 'Заполните данные пластинки': 'Fill in the record’s details',
+  'Сфотографировать этикетку': 'Photograph the label', 'Для старых пластинок без штрихкода — по каталожному номеру': 'For older records with no barcode — by catalogue number',
+  'Каталожный номер': 'Catalogue number', 'например, С60 27413 000': 'e.g. С60 27413 000', 'Формат': 'Format', 'Альбом': 'Album', 'Исполнитель': 'Artist', 'Лейбл': 'Label',
+  'Слушали': 'Listened to', 'Об альбоме': 'About the album', 'Сменить конверт': 'Change the sleeve', 'Сфотографировать конверт': 'Photograph the sleeve', 'Штрихкод': 'Barcode', 'Слушать, если хочешь…': 'Listen if you want to…', 'Поместите каталожный номер в рамку': 'Fit the catalogue number in the frame',
+  'Что послушать?': 'What to listen to?', 'Сканировать штрихкод': 'Scan the barcode', 'Наведите камеру на штрихкод на конверте': 'Point the camera at the barcode on the sleeve',
+  'По исполнителю, альбому или с чистого листа': 'By artist, album or from scratch', 'Исполнитель, альбом или номер': 'Artist, album or catalogue number', 'Слушал Паша': 'Pasha listened', 'Слушала Алина': 'Alina listened', 'Никто не слушал': 'Nobody has listened', 'Пластинки на полке': 'Records on the shelf', 'Пока нет пластинок': 'No records yet', 'Поиск пластинок': 'Search records', 'Наши пластинки': 'Our records', 'По исполнителю': 'By artist', 'По лейблу': 'By label', 'По году': 'By year',
+  'Токен Discogs…': 'Discogs token…', 'Токен сохранён': 'Token saved', 'Токен удалён': 'Token removed',
+  'Токен Discogs (необязательно: с ним приходят картинки конвертов). Оставьте пустым, чтобы удалить.': 'Discogs token (optional: it brings the sleeve pictures). Leave empty to remove it.',
+  'Исполнители': 'Artists', 'Лейблы': 'Labels', 'исполнителей': 'artists', 'лейблов': 'labels', 'до 1991 года': 'from before 1991', 'пока без оценок': 'no ratings yet',
+  'Самая старая': 'Oldest', 'Самая новая': 'Newest', 'Лучшая по Discogs': 'Best rated',
 };
 const EN_PATTERNS = [[/^Версия (\d+)$/, 'Version $1']];
-const EN_PLURALS = { 'книга': ['book', 'books'], 'оценка': ['rating', 'ratings'], 'страница': ['page', 'pages'], 'автор': ['author', 'authors'], 'комната': ['room', 'rooms'] };
+const EN_PLURALS = { 'книга': ['book', 'books'], 'пластинка': ['record', 'records'], 'оценка': ['rating', 'ratings'], 'страница': ['page', 'pages'], 'автор': ['author', 'authors'], 'комната': ['room', 'rooms'] };
 // Rooms are the family's own names; the usual ones get an English name, others show as written.
 const EN_ROOMS = { 'Гостиная': 'Living room', 'Кабинет Паши': 'Pasha’s study', 'Спальня': 'Bedroom', 'Столовая': 'Dining room', 'Детская': 'Children’s room', 'Кухня': 'Kitchen', 'Прихожая': 'Hallway' };
 
@@ -108,7 +121,7 @@ function translatePage() {
 
 const GKEY_KEY = 'bookshelf.googleKey';
 const LAST_LOC_KEY = 'bookshelf.lastLocation';
-const FIELDS = ['title', 'authors', 'series', 'publisher', 'year', 'pages', 'category', 'location', 'readBy', 'ratingPasha', 'ratingAlina', 'notes', 'description'];
+const FIELDS = ['title', 'authors', 'series', 'publisher', 'year', 'pages', 'catno', 'format', 'category', 'location', 'readBy', 'ratingPasha', 'ratingAlina', 'notes', 'description'];
 // Who has read a book: stored as a comma-separated list of these keys ("pasha,alina"); each reader's own 1–5 stars in its field.
 const READERS = localized({ pasha: 'Паша', alina: 'Алина' });
 const RATING_FIELD = { pasha: 'ratingPasha', alina: 'ratingAlina' };
@@ -127,6 +140,13 @@ function plural(n, [one, few, many]) {
   return many;
 }
 const BOOK_FORMS = ['книга', 'книги', 'книг'];
+// The collection has two halves: books and records. Everything on screen follows the open tab.
+const TAB_KEY = 'bookshelf.tab';
+let tab = (() => { try { return localStorage.getItem(TAB_KEY) === 'vinyl' ? 'vinyl' : 'books'; } catch { return 'books'; } })();
+const isVinyl = (b) => b.kind === 'vinyl';
+const tabItems = () => books.filter((b) => isVinyl(b) === (tab === 'vinyl'));
+const ITEM_FORMS = { books: BOOK_FORMS, vinyl: ['пластинка', 'пластинки', 'пластинок'] };
+
 let locFilter = null; // null = all, '' = books without a location, otherwise a location name
 let readFilter = null; // null = all, 'pasha' / 'alina' = read by that person, 'none' = read by nobody
 let catFilter = null; // null = all, otherwise a CATEGORIES key
@@ -585,6 +605,18 @@ async function findCover(isbn) {
 }
 
 // Every cover option for the picker: current cover, Chitai-gorod pictures (product shots flattened), ISBN sources.
+// Sleeve pictures to choose from: Apple's artwork, the Cover Art Archive, and whatever is already set.
+async function vinylCoverOptions(rec) {
+  const out = [];
+  try {
+    const d = await fetchJson(`https://itunes.apple.com/search?${new URLSearchParams({ term: `${rec.authors} ${rec.title}`, entity: 'album', limit: '6' })}`);
+    for (const a of d.results || []) if (a.artworkUrl100) out.push(a.artworkUrl100.replace('100x100bb', '600x600bb'));
+  } catch { /* offline */ }
+  const archive = await vinylCover({ ...rec, cover: '' }).catch(() => '');
+  if (archive) out.push(archive);
+  return [...new Set([rec.cover, ...out].filter(Boolean))];
+}
+
 async function coverOptions(book) {
   const candidates = [];
   if (book.isbn) {
@@ -757,13 +789,14 @@ const inReadFilter = (b) => readFilter === null || (readFilter === 'none' ? !(b.
 
 // Who-has-read filter: one chip per reader and one for books nobody has read yet; tapping the chosen one clears it.
 function renderReaderFilter() {
-  const pool = books.filter((b) => inCategory(b) && (locFilter === null || (b.location || '') === locFilter));
+  const vinyl = tab === 'vinyl';
+  const pool = tabItems().filter((b) => vinyl || (inCategory(b) && (locFilter === null || (b.location || '') === locFilter)));
   const chip = (value, label, n) => `<button class="chip reader-filter${readFilter === value ? ' on' : ''}" data-read="${value}">${label} <span>${n}</span></button>`;
-  $('readers').hidden = books.length === 0;
+  $('readers').hidden = pool.length === 0;
   $('readers').innerHTML = [
-    chip('pasha', t('Прочитал Паша'), pool.filter((b) => hasRead(b, 'pasha')).length),
-    chip('alina', t('Прочитала Алина'), pool.filter((b) => hasRead(b, 'alina')).length),
-    chip('none', t('Никто не читал'), pool.filter((b) => !(b.readBy || '')).length),
+    chip('pasha', t(vinyl ? 'Слушал Паша' : 'Прочитал Паша'), pool.filter((b) => hasRead(b, 'pasha')).length),
+    chip('alina', t(vinyl ? 'Слушала Алина' : 'Прочитала Алина'), pool.filter((b) => hasRead(b, 'alina')).length),
+    chip('none', t(vinyl ? 'Никто не слушал' : 'Никто не читал'), pool.filter((b) => !(b.readBy || '')).length),
   ].join('');
 }
 
@@ -798,13 +831,22 @@ function renderLocations() {
 }
 
 function render() {
+  document.body.dataset.tab = tab;
+  document.querySelector('h1').textContent = t(tab === 'vinyl' ? 'Пластинки на полке' : 'Книжная полка');
+  $('search').placeholder = t(tab === 'vinyl' ? 'Поиск пластинок' : 'Поиск книг');
+  $('empty').querySelector('[data-label="emptyTitle"]').textContent = t(tab === 'vinyl' ? 'Пока нет пластинок' : 'Пока нет книг');
+  $('quick').querySelector('[data-open="pick"] span').textContent = t(tab === 'vinyl' ? 'Что послушать?' : 'Что почитать?');
+  for (const btn of $('tabs').querySelectorAll('button')) btn.classList.toggle('on', btn.dataset.tab === tab);
+  for (const el of document.querySelectorAll('#sort option')) el.hidden = el.dataset.tab && el.dataset.tab !== tab;
+  if ($('sort').selectedOptions[0]?.hidden) $('sort').value = tab === 'vinyl' ? 'artist' : 'publisher';
+  if (tab === 'vinyl') return renderVinyl();
   renderHero();
   renderCategories();
   renderLocations();
   renderReaderFilter();
   const q = $('search').value.trim().toLowerCase();
   const sort = $('sort').value;
-  let shown = books.filter((b) => inCategory(b) &&
+  let shown = tabItems().filter((b) => inCategory(b) &&
     (locFilter === null || (b.location || '') === locFilter) && inReadFilter(b) &&
     (!q || [b.title, b.authors, b.series, b.isbn, b.publisher, b.location, b.notes].some((f) => (f || '').toLowerCase().includes(q))));
 
@@ -818,8 +860,9 @@ function render() {
   else if (sort === 'author') shown.sort((a, b) => collator.compare(a.authors || '￿', b.authors || '￿') || collator.compare(a.title, b.title));
   else shown.sort((a, b) => b.added - a.added);
 
-  $('count').textContent = books.length ? `${books.length} ${plural(books.length, BOOK_FORMS)}` : '';
-  $('empty').hidden = books.length > 0;
+  const mine = tabItems();
+  $('count').textContent = mine.length ? `${mine.length} ${plural(mine.length, BOOK_FORMS)}` : '';
+  $('empty').hidden = mine.length > 0;
   let index = 0;
   const bookHtml = (b, kids = false) => `
     <button class="book" data-id="${esc(b.id)}">
@@ -950,10 +993,11 @@ function spineHtml(b, i) {
 
 function renderHero() {
   const hero = $('hero');
+  if (tab === 'vinyl') return renderCrate(hero);
   const pub = (b) => publisherName(b.publisher) || '￿';
   const order = (a, b) => collator.compare(pub(a), pub(b)) || collator.compare(a.authors || '￿', b.authors || '￿') || collator.compare(a.title, b.title);
   // Grown-up books only: picture books have hardly any spine. Russian books first, a little gap, then the rest.
-  const all = books.filter((b) => b.category !== 'kids').sort(order);
+  const all = books.filter((b) => !isVinyl(b) && b.category !== 'kids').sort(order);
   if (!all.length) { hero.hidden = true; return; }
   const groups = [all.filter(isRussian), all.filter((b) => !isRussian(b))].filter((g) => g.length);
   let i = 0;
@@ -1038,8 +1082,8 @@ addEventListener('pointerup', () => {
 });
 
 $('heroTrack').addEventListener('click', (e) => {
-  const spine = e.target.closest('.spine');
-  if (spine) openSheet(books.find((b) => b.id === spine.dataset.id));
+  const item = e.target.closest('.spine, .crate-record');
+  if (item) openSheet(books.find((b) => b.id === item.dataset.id));
 });
 
 // Cover colours are read from a tiny copy of each cover (the image proxy allows canvas access), a few at a time,
@@ -1185,10 +1229,21 @@ function openSheet(book, { isNew = false, fromScan = false, note = '', warn = fa
   for (const name of FIELDS) f.elements[name].value = book[fieldKey(name)] || '';
   // New books default to the last location used, so a whole shelf can be scanned in a row.
   if (isNew && !book.location) f.elements.location.value = localStorage.getItem(LAST_LOC_KEY) || '';
+  const vinyl = isVinyl(book);
+  $('sheet').dataset.kind = vinyl ? 'vinyl' : 'book';
+  for (const [key, ru] of Object.entries(vinyl
+    ? { title: 'Альбом', authors: 'Исполнитель', publisher: 'Лейбл', read: 'Слушали', about: 'Об альбоме', coverChange: 'Сменить конверт', coverPhoto: 'Сфотографировать конверт', textmode: 'Каталожный номер', code: book.isbn ? 'Штрихкод' : 'Каталожный номер' }
+    : { title: 'Название', authors: 'Автор', publisher: 'Издательство', read: 'Прочитали', about: 'О книге', coverChange: 'Сменить обложку', coverPhoto: 'Сфотографировать обложку', textmode: 'Номер ISBN', code: 'ISBN' })) {
+    for (const el of document.querySelectorAll(`[data-label="${key}"]`)) el.textContent = t(ru);
+  }
+  $('aboutField').querySelector('textarea').placeholder = t(vinyl ? 'Слушать, если хочешь…' : 'Читать, если хочешь… или Читать, чтобы окунуться…');
   renderLocTags();
   renderCatTags();
   renderReadTags();
-  $('fIsbnText').textContent = book.isbn || '—';
+  $('fIsbnText').textContent = book.isbn || book.catno || '—';
+  $('dgLink').hidden = !book.discogsUrl;
+  if (book.discogsUrl) $('dgLink').href = book.discogsUrl;
+  $('fCover').className = `cover zoomable${vinyl ? ' sleeve' : ''}`;
   $('fCover').innerHTML = coverInner(book, false);
   settleCovers($('fCover'));
   $('coverPicker').hidden = true;
@@ -1243,6 +1298,8 @@ $('bookForm').addEventListener('submit', (e) => {
   if (same) book.location = same[0];
   if (isNew) localStorage.setItem(LAST_LOC_KEY, book.location);
   if (isNew) {
+    if (editing.book.kind) book.kind = editing.book.kind;
+    if (editing.book.discogsUrl) book.discogsUrl = editing.book.discogsUrl;
     book.id = book.isbn || (crypto.randomUUID?.() || String(Date.now()));
     book.added = Date.now();
   }
@@ -1267,7 +1324,7 @@ $('deleteBtn').addEventListener('click', () => {
   closeSheet();
 });
 $('list').addEventListener('click', (e) => {
-  const el = e.target.closest('.book');
+  const el = e.target.closest('.book, .record');
   if (!el) return;
   if ('addBook' in el.dataset) openAddSheet();
   else if (el.dataset.series) openFan(el);
@@ -1282,12 +1339,12 @@ $('coverBtn').addEventListener('click', async () => {
   const picker = $('coverPicker');
   picker.hidden = false;
   picker.innerHTML = `<p class="results-state">${t('Ищу обложки…')}</p>`;
-  const options = await coverOptions(sheetBook);
+  const options = await (isVinyl(sheetBook) ? vinylCoverOptions(sheetBook) : coverOptions(sheetBook));
   if (editing?.book !== sheetBook) return; // sheet closed or another book opened meanwhile
   const chosen = editing.cover ?? sheetBook.cover ?? '';
   picker.innerHTML = [...options, ''].map((url) => `
     <button type="button" class="cover-option${url === chosen ? ' on' : ''}" data-url="${esc(url)}" aria-label="${t(url ? 'Обложка' : 'Без обложки')}">
-      <span class="cover">${coverInner({ ...sheetBook, cover: url })}</span>
+      <span class="cover${isVinyl(sheetBook) ? ' sleeve' : ''}">${coverInner({ ...sheetBook, cover: url })}</span>
     </button>`).join('') + (options.length ? '' : `<p class="results-state">${t('Других обложек не нашлось.')}</p>`);
 });
 
@@ -1608,6 +1665,7 @@ $('locTags').addEventListener('click', (e) => {
 let busy = false;
 
 async function addByCode(raw, fromScan = false) {
+  if (tab === 'vinyl') return addRecordBy('barcode', normalizeCode(raw) || String(raw).replace(/\D/g, ''), fromScan);
   const isbn = normalizeCode(raw);
   if (!isbn) { toast(t('Это не похоже на ISBN')); return; }
 
@@ -1639,9 +1697,17 @@ async function addByCode(raw, fromScan = false) {
 // The "+" button opens a small sheet: scan, or add by hand (ISBN / title search, or an empty card).
 function openAddSheet() {
   if (!token) return;
-  const withCovers = books.filter((b) => b.cover);
+  $('addTitle').textContent = t(tab === 'vinyl' ? 'Добавить пластинку' : 'Добавить книгу');
+  const vinyl = tab === 'vinyl';
+  for (const [key, ru] of Object.entries(vinyl
+    ? { scanTitle: 'Сканировать штрихкод', scanHint: 'Наведите камеру на штрихкод на конверте', manualHint: 'По исполнителю, альбому или с чистого листа' }
+    : { scanTitle: 'Сканировать ISBN или штрихкод', scanHint: 'Наведите камеру на обратную сторону книги', manualHint: 'По ISBN, названию или с чистого листа' })) {
+    for (const el of $('addSheet').querySelectorAll(`[data-label="${key}"]`)) el.textContent = t(ru);
+  }
+  $('isbnInput').placeholder = t(vinyl ? 'Исполнитель, альбом или номер' : 'ISBN или название');
+  const withCovers = tabItems().filter((b) => b.cover);
   const picks = [...withCovers].sort(() => Math.random() - 0.5).slice(0, 3);
-  $('addHero').innerHTML = picks.map((b, i) => `<span class="cover add-hero-cover" data-i="${i}">${coverInner(b, false)}</span>`).join('');
+  $('addHero').innerHTML = picks.map((b, i) => `<span class="cover add-hero-cover${tab === 'vinyl' ? ' sleeve' : ''}" data-i="${i}">${coverInner(b, false)}</span>`).join('');
   settleCovers($('addHero'));
   $('isbnForm').hidden = true;
   $('addBlank').hidden = true;
@@ -1662,9 +1728,13 @@ $('addManual').addEventListener('click', () => {
 });
 $('addBlank').addEventListener('click', () => {
   closeAddSheet();
-  openSheet({ title: $('isbnInput').value.trim() }, { isNew: true, note: t('Заполните данные книги') });
+  const typedIn = $('isbnInput').value.trim();
+  openSheet(tab === 'vinyl' ? { kind: 'vinyl', title: typedIn } : { title: typedIn },
+    { isNew: true, note: t(tab === 'vinyl' ? 'Заполните данные пластинки' : 'Заполните данные книги') });
   $('isbnInput').value = '';
 });
+// Old records have no barcode: the camera reads the catalogue number off the label instead.
+$('addLabel').addEventListener('click', () => { closeAddSheet(); startScanner('text'); });
 
 // A USB barcode scanner types the code and presses Enter within a few milliseconds.
 let typed = '', typedAt = 0;
@@ -1685,7 +1755,8 @@ $('isbnForm').addEventListener('submit', (e) => {
   $('isbnInput').value = '';
   $('isbnInput').blur();
   closeAddSheet();
-  if (normalizeCode(v)) addByCode(v);
+  if (tab === 'vinyl') normalizeCode(v) ? addByCode(v) : searchRecords(v);
+  else if (normalizeCode(v)) addByCode(v);
   else if (/^[\d\s-]{9,}x?$/i.test(v)) toast(t('Это не похоже на ISBN')); // a mistyped number, not a title like «1984»
   else searchByTitle(v);
 });
@@ -1753,23 +1824,64 @@ async function searchByTitle(q) {
     $('resultsList').innerHTML = `<p class="results-state">${t(lists.every((l) => l === null) ? 'Поиск не отвечает — проверьте интернет.' : 'Ничего не нашлось. Попробуйте другое написание или добавьте вручную.')}</p>`;
     return;
   }
-  $('resultsList').innerHTML = searchResults.map((b, i) => {
-    const have = findInLibrary(b);
-    return `<button type="button" class="result" data-i="${i}">
-      <span class="cover">${coverInner(b)}</span>
-      <span class="r-text">
-        <span class="r-title">${esc(b.title)}</span>
-        <span class="r-sub">${esc([b.authors, b.year, b.publisher].filter(Boolean).join(' · '))}</span>
-        ${have ? `<span class="r-have">${t('Уже есть в библиотеке')}</span>` : ''}
-      </span>
-    </button>`;
-  }).join('');
+  $('resultsList').innerHTML = resultsHtml(searchResults);
+  settleCovers($('resultsList'));
+}
+
+// Records are searched in Discogs by whatever was typed: artist, album, or a catalogue number.
+async function searchRecords(q) {
+  const run = ++searchRun;
+  $('resultsTitle').textContent = `«${q}»`;
+  $('resultsList').innerHTML = `<p class="results-state">${t('Ищу…')}</p>`;
+  $('manualBtn').dataset.title = q;
+  $('results').hidden = false;
+  let list = null;
+  try {
+    list = await discogsSearch(/\d{2,}/.test(q) && /[A-ZА-Я]/i.test(q) ? { q, catno: q } : { q });
+    if (!list.length) list = await discogsSearch({ q });
+  } catch { /* offline or rate-limited */ }
+  if (run !== searchRun) return;
+  searchResults = (list || []).slice(0, 12);
+  if (!searchResults.length) {
+    $('resultsList').innerHTML = `<p class="results-state">${t(list === null ? 'Поиск не отвечает — проверьте интернет.' : 'Ничего не нашлось. Попробуйте другое написание или добавьте вручную.')}</p>`;
+    return;
+  }
+  $('resultsList').innerHTML = resultsHtml(searchResults);
+  settleCovers($('resultsList'));
 }
 
 // Where the copy you already have stands, so it can be found (or the new one left in the shop).
 const duplicateNote = (b) => t('Уже есть в библиотеке') + (b.location ? ` — ${t('стоит:')} ${roomLabel(b.location)}` : '');
 
+// Shows a ready list of finds (records) in the same sheet the book search uses.
+function showResults(list, query) {
+  searchRun++;
+  searchResults = list;
+  $('resultsTitle').textContent = `«${query}»`;
+  $('manualBtn').dataset.title = query;
+  $('resultsList').innerHTML = resultsHtml(list);
+  settleCovers($('resultsList'));
+  $('results').hidden = false;
+}
+
+function resultsHtml(list) {
+  return list.map((b, i) => {
+    const have = findInLibrary(b);
+    const line = isVinyl(b) ? [b.authors, b.year, b.publisher, b.catno, b.format, b.country].filter(Boolean).join(' · ')
+      : [b.authors, b.year, b.publisher].filter(Boolean).join(' · ');
+    return `<button type="button" class="result" data-i="${i}">
+      <span class="cover${isVinyl(b) ? ' sleeve' : ''}">${coverInner(b)}</span>
+      <span class="r-text">
+        <span class="r-title">${esc(b.title)}</span>
+        <span class="r-sub">${esc(line)}</span>
+        ${have ? `<span class="r-have">${t(isVinyl(b) ? 'Уже есть в коллекции' : 'Уже есть в библиотеке')}</span>` : ''}
+      </span>
+    </button>`;
+  }).join('');
+}
+
 function findInLibrary(b) {
+  if (isVinyl(b)) return books.find((x) => isVinyl(x) && ((b.isbn && x.isbn === b.isbn) || (b.catno && x.catno === b.catno && (x.authors || '') === (b.authors || ''))));
   return books.find((x) => (b.isbn && x.isbn === b.isbn) || bookKey(x) === bookKey(b));
 }
 
@@ -1779,6 +1891,16 @@ $('resultsList').addEventListener('click', async (e) => {
   const picked = { ...searchResults[+el.dataset.i] };
   busy = true;
   el.classList.add('loading');
+  if (isVinyl(picked)) {
+    picked.cover = await vinylCover(picked);
+    if (picked.barcode && !picked.isbn) picked.isbn = normalizeCode(picked.barcode) || '';
+    delete picked.barcode;
+    busy = false;
+    el.classList.remove('loading');
+    $('results').hidden = true;
+    const twin = findInLibrary(picked);
+    return twin ? openSheet(twin, { note: t('Уже есть в коллекции'), warn: true }) : openSheet(picked, { isNew: true });
+  }
   try {
     if (picked.cgSlug && !picked.isbn) {
       const token = await chitaiGorodToken();
@@ -1804,7 +1926,9 @@ $('resultsList').addEventListener('click', async (e) => {
 
 $('manualBtn').addEventListener('click', (e) => {
   $('results').hidden = true;
-  openSheet({ title: e.currentTarget.dataset.title }, { isNew: true, note: t('Заполните данные книги') });
+  const typedIn = e.currentTarget.dataset.title;
+  openSheet(tab === 'vinyl' ? { kind: 'vinyl', title: typedIn } : { title: typedIn },
+    { isNew: true, note: t(tab === 'vinyl' ? 'Заполните данные пластинки' : 'Заполните данные книги') });
 });
 $('resultsClose').addEventListener('click', () => { $('results').hidden = true; searchRun++; });
 $('results').addEventListener('click', (e) => { if (e.target.id === 'results') { $('results').hidden = true; searchRun++; } });
@@ -1860,7 +1984,8 @@ function getOcrWorker() {
   return ocrPromise;
 }
 
-async function startScanner() {
+async function startScanner(mode) {
+  if (mode) setScanMode(mode);
   if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
     toast(t('Камера работает только по https. Введите ISBN вручную.'), 4000);
     return;
@@ -1902,7 +2027,7 @@ async function runScan() {
       $('scanHint').textContent = t('Загружаю распознавание текста…');
       const worker = await getOcrWorker();
       if (!alive()) return;
-      $('scanHint').textContent = t('Поместите номер ISBN в рамку');
+      $('scanHint').textContent = t(tab === 'vinyl' ? 'Поместите каталожный номер в рамку' : 'Поместите номер ISBN в рамку');
       textLoop(worker, video, alive);
     }
   } catch {
@@ -1937,7 +2062,7 @@ async function textLoop(worker, video, alive) {
       try {
         const { data } = await worker.recognize(crop);
         if (!alive()) return;
-        const hit = findIsbnInText(data.text);
+        const hit = tab === 'vinyl' ? findCatnoInText(data.text) : findIsbnInText(data.text);
         // A number printed after "ISBN" is trusted at once; a bare 978… number must be read twice.
         if (hit && (hit.labelled || hit.code === last)) return onScanned(hit.code);
         last = hit?.code ?? null;
@@ -1968,6 +2093,25 @@ function frameCrop(video) {
 
 // Finds a checksum-valid ISBN in OCR text → { code (ISBN-13), labelled } or null.
 // ISBN-10 is only accepted on a line that says "ISBN", since random digits pass its checksum too often.
+// A record's catalogue number as printed on the label: "С60 27413 000", "33С 10-05207", "SHVL 804", "PL 12345".
+// Letters and digits in one token, at least three digits, and never a bare year.
+function findCatnoInText(text) {
+  const clean = text.toUpperCase().replace(/[^0-9A-ZА-ЯЁ \n-]/g, ' ');
+  // Soviet numbers put a letter straight before the digits ("С60 27413 000", "33С 60-08429");
+  // western ones are a short word and a number ("SHVL 804", "MFSL 1-017").
+  const soviet = /(?:^|\s)((?:\d{2}\s?)?[A-ZА-ЯЁ]-?\d{2,3}(?:\s?-?\s?\d{2,6}){0,2}(?:\s?-?\s?\d)?)(?=\s|$)/;
+  const western = /(?:^|\s)([A-ZА-ЯЁ]{2,5}\s?-?\s?\d{1,3}(?:\s?-?\s?\d{2,6}){0,2})(?=\s|$)/;
+  // Some labels print the speed first: "33С 60-08429".
+  const speedFirst = /(?:^|\s)(\d{2}\s?[A-ZА-ЯЁ]\s?-?\s?\d{2,3}(?:\s?-?\s?\d{2,6}){0,2})(?=\s|$)/;
+  for (const line of clean.split('\n')) {
+    for (const re of [soviet, speedFirst, western]) {
+      const code = line.match(re)?.[1].replace(/\s+/g, ' ').trim();
+      if (code && (code.match(/\d/g) || []).length >= 3) return { code, labelled: false };
+    }
+  }
+  return null;
+}
+
 function findIsbnInText(text) {
   for (const line of text.toUpperCase().split('\n')) {
     const labelled = /[I1L|]\s*S\s*[B8]\s*N/.test(line);
@@ -1988,7 +2132,8 @@ function findIsbnInText(text) {
 function onScanned(code) {
   navigator.vibrate?.(60);
   stopScanner();
-  addByCode(code, true);
+  if (tab === 'vinyl' && scanMode === 'text') addRecordBy('catno', code, true);
+  else addByCode(code, true);
 }
 
 function stopScanner() {
@@ -2006,6 +2151,200 @@ $('scanModes').addEventListener('click', (e) => {
 });
 
 
+
+/* ---------- records ---------- */
+
+// The records' hero: the whole collection leaning in a crate, the way you flip through one in a shop.
+function renderCrate(hero) {
+  const all = tabItems().sort((a, b) => collator.compare(a.authors || '￿', b.authors || '￿') || (+a.year || 0) - (+b.year || 0));
+  if (!all.length) { hero.hidden = true; return; }
+  const html = all.map((b, i) => `
+    <button class="crate-record" data-id="${esc(b.id)}" style="--i:${i}" aria-label="${esc([b.authors, b.title].filter(Boolean).join(' — '))}">
+      <span class="cover crate-sleeve">${coverInner(b, i >= 14)}</span>
+    </button>`).join('');
+  hero.hidden = false;
+  if (html === heroHtml) return;
+  heroHtml = html;
+  $('heroTrack').innerHTML = html;
+  settleCovers($('heroTrack'));
+}
+
+// A record's spine is its sleeve: square covers stand in a crate, newest pressings and vintage on separate shelves.
+// Everything else — search, sort, the read/listened marks, ratings, the card — is shared with the books.
+const VINTAGE_BEFORE = 1991; // Soviet and early pressings go on their own shelf
+const isVintage = (b) => +b.year > 0 && +b.year < VINTAGE_BEFORE;
+
+function renderVinyl() {
+  const q = $('search').value.trim().toLowerCase();
+  const sort = $('sort').value;
+  const mine = tabItems();
+  let shown = mine.filter((b) => inReadFilter(b) &&
+    (!q || [b.title, b.authors, b.publisher, b.catno, b.isbn, b.format, b.notes].some((f) => (f || '').toLowerCase().includes(q))));
+
+  if (sort === 'title') shown.sort((a, b) => collator.compare(a.title, b.title));
+  else if (sort === 'rating') shown.sort((a, b) => (b.rating || 0) - (a.rating || 0) || collator.compare(a.title, b.title));
+  else if (sort === 'year') shown.sort((a, b) => (+b.year || 0) - (+a.year || 0) || collator.compare(a.title, b.title));
+  else if (sort === 'label') shown.sort((a, b) => collator.compare(publisherName(a.publisher) || '￿', publisherName(b.publisher) || '￿') || collator.compare(a.authors || '￿', b.authors || '￿'));
+  else if (sort === 'added') shown.sort((a, b) => b.added - a.added);
+  else shown.sort((a, b) => collator.compare(a.authors || '￿', b.authors || '￿') || (+a.year || 0) - (+b.year || 0) || collator.compare(a.title, b.title));
+
+  renderHero();
+  renderReaderFilter();
+  $('categories').hidden = true;
+  $('locations').hidden = true;
+  $('count').textContent = mine.length ? `${mine.length} ${plural(mine.length, ITEM_FORMS.vinyl)}` : '';
+  $('empty').hidden = mine.length > 0;
+
+  let index = 0;
+  const sleeve = (b) => `
+    <button class="record" data-id="${esc(b.id)}">
+      <span class="stand"><span class="disc" aria-hidden="true"></span><span class="cover sleeve">${coverInner(b, index++ >= 12)}${ratingBadge(b)}</span></span>
+      <span class="label">
+        <span class="title">${esc(b.authors || b.title)}</span>
+        <span class="sub">${esc([b.title !== b.authors ? b.title : '', b.year].filter(Boolean).join(' · '))}</span>
+      </span>
+    </button>`;
+  const addRecord = token && !q ? `
+    <button class="record add-book" data-add-book>
+      <span class="stand"><span class="cover sleeve add-cover">${PLUS_LARGE}</span></span>
+      <span class="label"><span class="title">${t('Добавить пластинку')}</span></span>
+    </button>` : '';
+
+  const vintage = shown.filter(isVintage), modern = shown.filter((b) => !isVintage(b));
+  const groups = [[t('Винтаж'), vintage], [t('Современные'), modern]].filter(([, list]) => list.length);
+  const titled = groups.length > 1;
+  let html = groups.map(([title, list], i) => `
+    <section class="shelf-section vinyl-section">
+      ${titled ? `<h2 class="shelf-title vinyl-title">${title}</h2>` : ''}
+      <div class="shelf crate">${list.map(sleeve).join('')}${i === groups.length - 1 ? addRecord : ''}</div>
+    </section>`).join('');
+  if (!groups.length) html = addRecord ? `<div class="shelf crate">${addRecord}</div>` : (mine.length ? `<p class="empty">${t('Ничего не найдено.')}</p>` : '');
+  if (html !== renderedList) {
+    renderedList = html;
+    $('list').innerHTML = html;
+    settleCovers($('list'));
+  }
+}
+
+/* ---------- looking records up ---------- */
+
+// Discogs knows both new pressings (by barcode) and Soviet ones (by catalogue number); it answers without a key,
+// 25 requests a minute. A personal token is optional and only adds the sleeve pictures.
+const DISCOGS = 'https://api.discogs.com/database/search';
+const DKEY_KEY = 'bookshelf.discogsToken';
+const discogsAuth = () => {
+  const key = localStorage.getItem(DKEY_KEY);
+  return key ? { Authorization: `Discogs token=${key}` } : {};
+};
+
+// Records only: the same barcode or catalogue number often belongs to a CD or a cassette as well.
+async function discogsSearch(params) {
+  const url = `${DISCOGS}?${new URLSearchParams({ type: 'release', format: 'Vinyl', per_page: '12', ...params })}`;
+  const r = await fetch(url, { headers: discogsAuth(), signal: timeout() });
+  if (!r.ok) throw new Error(r.status);
+  return ((await r.json()).results || []).map(fromDiscogs);
+}
+
+// "Ария - Герой Асфальта" → artist and album; Discogs marks duplicate names as "Aria (2)".
+function fromDiscogs(r) {
+  const [artist, ...rest] = String(r.title || '').split(' - ');
+  return {
+    kind: 'vinyl',
+    authors: artist.replace(/\s*\(\d+\)$/, '').trim(),
+    title: (rest.join(' - ') || artist).trim(),
+    year: r.year ? String(r.year) : '',
+    publisher: (r.label || [])[0] || '',
+    catno: r.catno || '',
+    format: pickFormat(r.format || []),
+    country: r.country || '',
+    cover: r.cover_image && !r.cover_image.includes('spacer.gif') ? r.cover_image : '',
+    discogsUrl: r.uri ? `https://www.discogs.com${r.uri}` : '',
+    barcode: (r.barcode || [])[0] || '',
+  };
+}
+const mbEscape = (s = '') => s.replace(/["\\]/g, ' ').trim();
+
+// "33С 60-08429" → also "С 60-08429", "С60-08429", "60-08429": Discogs writes the same number in several ways.
+function catnoVariants(code) {
+  const trimmed = code.trim();
+  const noSpeed = trimmed.replace(/^(?:33|45|78)\s?/, '');
+  // The bare digits are left out on purpose: they match half the catalogue.
+  return [...new Set([trimmed, noSpeed, noSpeed.replace(/\s+/g, ''), noSpeed.replace(/[\s-]+/g, ' ')].filter(Boolean))];
+}
+const pickFormat = (list) => list.find((f) => /^(LP|EP|7"|10"|12"|Box Set|Single)$/i.test(f)) || (list.includes('Vinyl') ? 'LP' : list[0] || '');
+
+// Sleeve pictures: Discogs only serves them with a token, so the usual source is Apple's catalogue,
+// then the Cover Art Archive by barcode. Both allow being read from the page.
+async function vinylCover(rec) {
+  if (rec.cover) return rec.cover;
+  try {
+    const d = await fetchJson(`https://itunes.apple.com/search?${new URLSearchParams({ term: `${rec.authors} ${rec.title}`, entity: 'album', limit: '3' })}`);
+    const want = seriesKey(rec.title);
+    const hit = (d.results || []).find((a) => {
+      const got = seriesKey(a.collectionName);
+      return got === want || got.startsWith(want + ' ') || want.startsWith(got + ' '); // "Currents (Deluxe)" counts, "The Wall" does not
+    });
+    if (hit?.artworkUrl100) return hit.artworkUrl100.replace('100x100bb', '600x600bb');
+  } catch { /* offline or no match */ }
+  // Apple's catalogue misses plenty of older albums; MusicBrainz plus the Cover Art Archive usually has them.
+  const mbQuery = (rec.isbn || rec.barcode)
+    ? `release/?query=barcode:${rec.isbn || rec.barcode}&fmt=json&limit=1`
+    : `release-group/?query=artist:"${mbEscape(rec.authors)}" AND releasegroup:"${mbEscape(rec.title)}"&fmt=json&limit=1`;
+  try {
+    const mb = await fetchJson(`https://musicbrainz.org/ws/2/${mbQuery}`);
+    const group = mb['release-groups']?.[0], release = mb.releases?.[0];
+    const url = group ? `https://coverartarchive.org/release-group/${group.id}` : release ? `https://coverartarchive.org/release/${release.id}` : '';
+    if (url) {
+      const art = await fetch(url, { signal: timeout() });
+      if (art.ok) {
+        const front = (await art.json()).images?.find((i) => i.front) || {};
+        // the archive answers with http links; the page is served over https
+        return (front.thumbnails?.['500'] || front.thumbnails?.large || front.image || '').replace(/^http:/, 'https:');
+      }
+    }
+  } catch { /* no cover art anywhere */ }
+  return '';
+}
+
+// A record scanned by barcode, or found by its catalogue number.
+async function addRecordBy(kind, value, fromScan = false) {
+  const existing = books.find((b) => isVinyl(b) && (kind === 'barcode' ? b.isbn === value : b.catno && b.catno.toLowerCase() === value.toLowerCase()));
+  if (existing) {
+    navigator.vibrate?.([60, 60, 60]);
+    openSheet(existing, { note: t('Уже есть в коллекции'), warn: true, fromScan });
+    return;
+  }
+  if (busy) return;
+  busy = true;
+  toast(t('Ищу пластинку…'), 0);
+  let found = null;
+  try {
+    let list = [];
+    if (kind === 'barcode') list = await discogsSearch({ barcode: value });
+    else {
+      // The number on the label rarely matches the catalogue exactly: the speed, spaces and dashes all vary.
+      for (const variant of catnoVariants(value)) {
+        list = await discogsSearch({ catno: variant });
+        if (!list.length) list = await discogsSearch({ q: variant });
+        if (list.length) break;
+      }
+      if (!list.length) list = await discogsSearch({ catno: value, format: '' }); // not a vinyl-only number after all
+    }
+    found = list[0] || null;
+    if (list.length > 1) { // several pressings of the same record: let the owner choose
+      busy = false;
+      hideToast();
+      showResults(list, value);
+      return;
+    }
+  } catch { /* offline or rate-limited */ }
+  busy = false;
+  hideToast();
+  const rec = { kind: 'vinyl', ...(found || {}), [kind === 'barcode' ? 'isbn' : 'catno']: value };
+  if (found) rec.cover = await vinylCover(rec);
+  openSheet(rec, { isNew: true, fromScan, note: found ? '' : t('Не нашлось в Discogs — заполните сами') });
+}
+
 /* ---------- what to read ---------- */
 
 // A random grown-up book the chosen person hasn't read (or nobody has, for "anyone"), optionally of one category.
@@ -2014,11 +2353,14 @@ const pickPrefs = { who: 'any', cat: '', ...readJson(PICK_KEY, {}) };
 let pickCurrent = null;
 
 function pickPool() {
-  return books.filter((b) => b.category !== 'kids' && (pickPrefs.who === 'any' ? !(b.readBy || '') : !hasRead(b, pickPrefs.who)) &&
+  if (tab === 'vinyl') return tabItems().filter((b) => (pickPrefs.who === 'any' ? !(b.readBy || '') : !hasRead(b, pickPrefs.who)));
+  return books.filter((b) => !isVinyl(b) && b.category !== 'kids' && (pickPrefs.who === 'any' ? !(b.readBy || '') : !hasRead(b, pickPrefs.who)) &&
     (!pickPrefs.cat || (b.category || '') === pickPrefs.cat));
 }
 
 function renderPick(reroll = true) {
+  $('pickTitle').textContent = t(tab === 'vinyl' ? 'Что послушать?' : 'Что почитать?');
+  $('pickCat').hidden = tab === 'vinyl';
   if (pickPrefs.cat === 'kids') pickPrefs.cat = ''; // children's books aren't offered (a choice saved before)
   const seg = (group, value, label) => `<button type="button" class="seg${pickPrefs[group] === value ? ' on' : ''}" data-${group}="${value}">${label}</button>`;
   $('pickWho').innerHTML = seg('who', 'any', t('Кому угодно')) + Object.entries(READERS).map(([k, n]) => seg('who', k, n)).join('');
@@ -2078,6 +2420,8 @@ function bars(rows, { color = () => '', onClick = null } = {}) {
 }
 
 function renderStats() {
+  if (tab === 'vinyl') return renderVinylStats();
+  const books = tabItems(); // this half of the collection only
   const n = books.length;
   const num = (v) => v.toLocaleString(locale());
   const pagesOf = (list) => list.reduce((sum, b) => sum + (parseInt(b.pages, 10) || 0), 0);
@@ -2111,7 +2455,7 @@ function renderStats() {
   const byGoodreads = books.filter((b) => b.rating && b.ratingsCount >= 50).sort((a, b) => b.rating - a.rating);
   const family = (b) => avg(Object.values(RATING_FIELD).map((f) => +b[f]).filter(Boolean));
   const byFamily = books.filter(family).sort((a, b) => family(b) - family(a));
-  const record = (label, b, value) => b ? `<button type="button" class="record" data-id="${esc(b.id)}"><span class="cover">${coverInner(b, false)}</span><span><small>${label}</small><b>${esc(b.title)}</b><em>${value}</em></span></button>` : '';
+  const record = (label, b, value) => b ? `<button type="button" class="record-card" data-id="${esc(b.id)}"><span class="cover">${coverInner(b, false)}</span><span><small>${label}</small><b>${esc(b.title)}</b><em>${value}</em></span></button>` : '';
 
   const decades = count((b) => +b.year > 1000 ? (lang === 'en' ? `${Math.floor(b.year / 10) * 10}s` : `${Math.floor(b.year / 10) * 10}-е`) : '').sort((a, b) => a[0].localeCompare(b[0]));
 
@@ -2144,10 +2488,54 @@ function renderStats() {
   settleCovers($('statsBody'));
 }
 
-function openStats() { renderStats(); $('statsSheet').hidden = false; $('statsBody').scrollTop = 0; }
+// The records get their own numbers: artists, labels, decades and who has listened to what.
+function renderVinylStats() {
+  const list = tabItems();
+  const n = list.length;
+  const num = (v) => v.toLocaleString(locale());
+  const avg = (vals) => (vals.length ? vals.reduce((a, v) => a + v, 0) / vals.length : 0);
+  const count = (key) => { const m = new Map(); for (const b of list) { const k = key(b); if (k) m.set(k, (m.get(k) || 0) + 1); } return [...m].sort((a, b) => b[1] - a[1]); };
+  const artists = new Set(list.map((b) => (b.authors || '').trim()).filter(Boolean));
+  const vintage = list.filter(isVintage);
+  const readerCards = Object.entries(READERS).map(([k, name]) => {
+    const heard = list.filter((b) => hasRead(b, k));
+    const stars = list.map((b) => +b[RATING_FIELD[k]]).filter(Boolean);
+    return `<div class="reader-stat">
+      <p class="reader-name">${name}</p>
+      <p class="reader-big">${heard.length}<span> ${t('из')} ${n}</span></p>
+      <span class="progress"><span style="width:${n ? (heard.length / n * 100).toFixed(1) : 0}%"></span></span>
+      <p class="reader-sub">${stars.length ? `${t('средняя оценка')} ${avg(stars).toFixed(1)}★` : t('пока без оценок')}</p>
+    </div>`;
+  }).join('');
+  const decades = count((b) => (+b.year > 1000 ? (lang === 'en' ? `${Math.floor(b.year / 10) * 10}s` : `${Math.floor(b.year / 10) * 10}-е`) : '')).sort((a, b) => a[0].localeCompare(b[0]));
+  const byYear = list.filter((b) => +b.year > 1000).sort((a, b) => a.year - b.year);
+  const byRating = list.filter((b) => b.rating).sort((a, b) => b.rating - a.rating);
+  const record = (label, b, value) => (b ? `<button type="button" class="record-card" data-id="${esc(b.id)}"><span class="cover sleeve">${coverInner(b, false)}</span><span><small>${label}</small><b>${esc(b.title)}</b><em>${value}</em></span></button>` : '');
+  $('statsBody').innerHTML = `
+    <div class="stat-tiles">
+      ${[[num(n), plural(n, ITEM_FORMS.vinyl)], [num(artists.size), t('исполнителей')], [num(count((b) => publisherName(b.publisher)).length), t('лейблов')], [num(vintage.length), t('до 1991 года')]]
+    .map(([v, l]) => `<div class="stat-tile"><b>${v}</b><span>${l}</span></div>`).join('')}
+    </div>
+    <h3 class="stats-h">${t('Слушали')}</h3>
+    <div class="reader-stats">${readerCards}</div>
+    <h3 class="stats-h">${t('Исполнители')}</h3>
+    ${bars(count((b) => b.authors).slice(0, 6).map(([l, v]) => ({ label: l, value: v })))}
+    <h3 class="stats-h">${t('Лейблы')}</h3>
+    ${bars(count((b) => publisherName(b.publisher)).slice(0, 6).map(([l, v]) => ({ label: l, value: v })))}
+    ${decades.length ? `<h3 class="stats-h">${t('Годы издания')}</h3>${bars(decades.map(([l, v]) => ({ label: l, value: v })))}` : ''}
+    <h3 class="stats-h">${t('Рекорды')}</h3>
+    <div class="records">
+      ${record(t('Самая старая'), byYear[0], byYear[0]?.year)}
+      ${record(t('Самая новая'), byYear.at(-1), byYear.at(-1)?.year)}
+      ${record(t('Лучшая по Discogs'), byRating[0], byRating[0] && `★ ${byRating[0].rating.toFixed(2)}`)}
+    </div>`;
+  settleCovers($('statsBody'));
+}
+
+function openStats() { $('statsTitle').textContent = t(tab === 'vinyl' ? 'Наши пластинки' : 'Наша библиотека'); renderStats(); $('statsSheet').hidden = false; $('statsBody').scrollTop = 0; }
 $('statsSheet').addEventListener('click', (e) => {
   if (e.target.id === 'statsSheet' || e.target.closest('#statsClose')) { $('statsSheet').hidden = true; return; }
-  const rec = e.target.closest('.record');
+  const rec = e.target.closest('.record-card');
   if (rec) { $('statsSheet').hidden = true; openSheet(books.find((b) => b.id === rec.dataset.id)); }
 });
 
@@ -2208,6 +2596,12 @@ $('menu').addEventListener('click', (e) => {
   if (action === 'import') $('importFile').click();
   if (action === 'signin') { $('signin').hidden = false; $('signinForm').elements.token.focus(); }
   if (action === 'signout') signOut();
+  if (action === 'dkey') {
+    const v = prompt(t('Токен Discogs (необязательно: с ним приходят картинки конвертов). Оставьте пустым, чтобы удалить.'), localStorage.getItem(DKEY_KEY) || '');
+    if (v === null) return;
+    v.trim() ? localStorage.setItem(DKEY_KEY, v.trim()) : localStorage.removeItem(DKEY_KEY);
+    toast(v.trim() ? t('Токен сохранён') : t('Токен удалён'));
+  }
   if (action === 'gkey') {
     const v = prompt(t('Ключ Google Books API (необязательно: помогает, когда бесплатный лимит закончился). Оставьте пустым, чтобы удалить.'), localStorage.getItem(GKEY_KEY) || '');
     if (v === null) return;
@@ -2261,6 +2655,21 @@ $('categories').addEventListener('click', (e) => {
   catFilter = seg.dataset.cat === '*' ? null : seg.dataset.cat;
   render();
 });
+$('tabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn || btn.dataset.tab === tab) return;
+  tab = btn.dataset.tab;
+  try { localStorage.setItem(TAB_KEY, tab); } catch { /* storage unavailable */ }
+  locFilter = null;
+  catFilter = null;
+  readFilter = null;
+  $('search').value = '';
+  renderedList = null;
+  heroHtml = null;
+  render();
+  scrollTo({ top: 0, behavior: 'smooth' });
+});
+
 $('langSwitch').addEventListener('click', (e) => {
   const btn = e.target.closest('button');
   if (!btn || btn.dataset.lang === lang) return;

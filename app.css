@@ -650,14 +650,14 @@ input[readonly], textarea[readonly] { background: transparent; border-color: tra
 .bar-value { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 2ch; text-align: right; }
 .records { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 @media (max-width: 480px) { .records { grid-template-columns: 1fr; } }
-.record { display: flex; gap: 10px; align-items: center; padding: 8px; text-align: left; background: none; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; color: inherit; }
-.record:hover { border-color: #cfc8bc; }
-.record .cover { width: 40px; flex: none; }
-.record .cloth-title, .record .cloth-author { display: none; }
-.record > span:last-child { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.record small { font-size: 11px; color: var(--muted); }
-.record b { font-size: 13px; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.record em { font-style: normal; font-size: 12px; color: var(--accent); }
+.record-card { display: flex; gap: 10px; align-items: center; padding: 8px; text-align: left; background: none; border: 1px solid var(--line); border-radius: 12px; cursor: pointer; color: inherit; }
+.record-card:hover { border-color: #cfc8bc; }
+.record-card .cover { width: 40px; flex: none; }
+.record-card .cloth-title, .record-card .cloth-author { display: none; }
+.record-card > span:last-child { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.record-card small { font-size: 11px; color: var(--muted); }
+.record-card b { font-size: 13px; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.record-card em { font-style: normal; font-size: 12px; color: var(--accent); }
 
 /* ---------- map of the shelves: a floor plan ---------- */
 .map-sheet { max-width: 640px; }
@@ -698,3 +698,115 @@ input[readonly], textarea[readonly] { background: transparent; border-color: tra
 .lang-switch button { border: 0; background: transparent; padding: 4px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--muted); cursor: pointer; }
 .lang-switch button.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 2px rgb(40 30 20 / 0.14); }
 .lang-switch button:not(.on):hover { color: var(--ink); }
+
+/* ---------- two halves of the collection: books and records ---------- */
+.tabs { display: flex; gap: 4px; padding: 3px; margin: 0 0 14px; background: var(--line); border-radius: 999px; width: max-content; }
+.tabs button { border: 0; background: transparent; padding: 7px 18px; border-radius: 999px; font-size: 14px; font-weight: 500; color: var(--muted); cursor: pointer; transition: color 0.15s, background 0.15s; }
+.tabs button.on { background: var(--card); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgb(40 30 20 / 0.14); }
+.tabs button:not(.on):hover { color: var(--ink); }
+#sheet[data-kind="book"] .vinyl-only, #sheet[data-kind="vinyl"] .book-only { display: none; }
+body[data-tab="books"] .vinyl-only { display: none; }
+body[data-tab="vinyl"] .quick [data-open="map"] { display: none; }
+
+/* ---------- the records tab: a night-drive palette, neon and chrome ---------- */
+body[data-tab="vinyl"] {
+  --bg: #140d24; --card: #1d1438; --ink: #f6f1ff; --muted: #a294c8; --line: #342a5c; --accent: #ff3d9a; --accent-2: #2fe3f2;
+  --plank-top: #ff3d9a; --plank-face: #6c2bb5;
+  background: radial-gradient(120% 70% at 50% -10%, #3a1d5e 0%, #1b1132 45%, #120b1f 100%) fixed;
+  color: var(--ink);
+}
+body[data-tab="vinyl"] .tabs { background: #2a1f4d; }
+body[data-tab="vinyl"] .tabs button.on { background: linear-gradient(135deg, var(--accent), #9b3bff); color: #fff; box-shadow: 0 0 14px rgb(255 61 154 / 0.5); }
+body[data-tab="vinyl"] h1, body[data-tab="vinyl"] .shelf-title, body[data-tab="vinyl"] .add-title {
+  font-family: Tektur, Prata, Georgia, serif; font-weight: 700; letter-spacing: 0.01em;
+  background: linear-gradient(180deg, #fff 8%, #ffd9f2 38%, var(--accent) 62%, #7a2bd6 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: 0 0 22px rgb(255 61 154 / 0.35);
+}
+body[data-tab="vinyl"] h1 { font-size: 24px; }
+@media (max-width: 420px) { body[data-tab="vinyl"] h1 { font-size: 19px; } }
+body[data-tab="vinyl"] .tools input, body[data-tab="vinyl"] .tools select { background: #241a44; border-color: #3d3068; color: var(--ink); }
+body[data-tab="vinyl"] .tools input::placeholder { color: #8a7cb0; }
+body[data-tab="vinyl"] .chip { background: #241a44; border-color: #3d3068; color: var(--ink); }
+body[data-tab="vinyl"] .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+body[data-tab="vinyl"] .lang-switch, body[data-tab="vinyl"] .segments { background: #2a1f4d; }
+body[data-tab="vinyl"] .lang-switch button.on { background: #3d2d70; color: #fff; }
+body[data-tab="vinyl"] .icon-btn:hover { background: #2a1f4d; color: #fff; }
+body[data-tab="vinyl"] .quick button { background: #241a44; border-color: #3d3068; color: var(--ink); }
+body[data-tab="vinyl"] .quick button svg { color: var(--accent-2); }
+body[data-tab="vinyl"] .fab { background: linear-gradient(135deg, var(--accent), #8c2bff); box-shadow: 0 6px 24px rgb(255 61 154 / 0.45); }
+body[data-tab="vinyl"] .menu { background: #241a44; border-color: #3d3068; }
+body[data-tab="vinyl"] .menu button:hover { background: #2f2358; }
+
+/* the hero crate: sleeves leaning back, flipped through sideways */
+body[data-tab="vinyl"] .hero { --hero-max: clamp(150px, 32vw, 200px); }
+body[data-tab="vinyl"] .hero-track { min-height: 0; align-items: flex-end; padding-bottom: 22px; }
+body[data-tab="vinyl"] .hero-shelf {
+  padding: 22px 16px 0;
+  background:
+    linear-gradient(transparent calc(100% - 22px), #ff3d9a calc(100% - 22px) calc(100% - 19px), #6c2bb5 calc(100% - 19px) calc(100% - 9px), #2a1a4d calc(100% - 9px), transparent),
+    repeating-linear-gradient(90deg, rgb(47 227 242 / 0.14) 0 1px, transparent 1px 42px) bottom / 100% 90px no-repeat,
+    linear-gradient(#1a1030, #2a1b4f);
+}
+.crate-record {
+  flex: none; width: clamp(96px, 26vw, 148px); margin-right: -34px; padding: 0; border: 0; background: none; cursor: pointer;
+  rotate: -9deg; transform-origin: bottom left; transition: translate 0.25s cubic-bezier(0.16, 1, 0.3, 1), rotate 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.crate-record:last-child { margin-right: 0; }
+.crate-sleeve {
+  position: relative; display: block; aspect-ratio: 1; border-radius: 2px; overflow: hidden; background: #0e0a18;
+  box-shadow: -3px 4px 10px rgb(0 0 0 / 0.55), 0 0 0 1px rgb(255 255 255 / 0.06);
+}
+.crate-record:hover, .crate-record:focus-visible { translate: 0 -12px; rotate: -4deg; }
+.crate-record:focus-visible { outline: none; }
+.crate-record:focus-visible .crate-sleeve { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+
+/* the shelves: square sleeves with the record peeking out */
+.crate { row-gap: 46px; }
+.record { display: flex; flex-direction: column; min-width: 0; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: inherit; }
+.record .stand { position: relative; padding-bottom: 12px; }
+.record .stand::after {
+  content: ''; position: absolute; bottom: -10px; height: 20px; left: -100vw; right: -100vw; pointer-events: none;
+  background: linear-gradient(var(--plank-top) 0 2px, var(--plank-face) 2px 10px, #2a1a4d 10px 13px, transparent 13px);
+  box-shadow: 0 -6px 18px -6px rgb(255 61 154 / 0.5);
+}
+/* a sleeve is a cover, only square and without the book's spine crease */
+.sleeve::after, .crate-sleeve::after { display: none; }
+.sleeve, .crate-sleeve { aspect-ratio: 1; border-radius: 2px; }
+.sleeve {
+  position: relative; display: block; border-radius: 2px; overflow: hidden; background: #0e0a18;
+  box-shadow: 0 1px 1px rgb(0 0 0 / 0.4), 4px 8px 18px -8px rgb(0 0 0 / 0.8);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  container-type: inline-size;
+}
+/* the disc itself, sliding out from behind the sleeve on hover */
+.record .disc {
+  position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 50%, #d8cfe8 0 8%, #100c1c 8.5% 14%, #1a1526 14% 15%, #0d0a16 15% 100%),
+    repeating-radial-gradient(circle at 50% 50%, rgb(255 255 255 / 0.05) 0 2px, transparent 2px 4px);
+  box-shadow: inset 0 0 22px rgb(0 0 0 / 0.9);
+  translate: 8% 0; scale: 0.96;
+  transition: translate 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.record:hover .disc, .record:focus-visible .disc { translate: 26% 0; }
+.record:hover .sleeve, .record:focus-visible .sleeve { transform: translateY(-4px); }
+.record:focus-visible { outline: none; }
+.record:focus-visible .sleeve { outline: 2px solid var(--accent-2); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .record .disc, .record .sleeve, .crate-record { transition: none; } }
+body[data-tab="vinyl"] .label .title { color: var(--ink); }
+body[data-tab="vinyl"] .label .sub, body[data-tab="vinyl"] .count, body[data-tab="vinyl"] .version { color: var(--muted); }
+body[data-tab="vinyl"] .add-cover { background: #2a1f4d; color: #6e5fa0; }
+body[data-tab="vinyl"] .add-book:hover .add-cover { color: var(--accent-2); }
+body[data-tab="vinyl"] .vinyl-title { font-size: 19px; }
+body[data-tab="vinyl"] .gr-badge { background: rgb(12 8 22 / 0.72); }
+/* sheets and dialogs keep the night palette while the records tab is open */
+body[data-tab="vinyl"] .sheet, body[data-tab="vinyl"] .results { background: #1d1438; color: var(--ink); }
+body[data-tab="vinyl"] .sheet input, body[data-tab="vinyl"] .sheet textarea { background: #241a44; border-color: #3d3068; color: var(--ink); }
+body[data-tab="vinyl"] .sheet .btn { background: #241a44; border-color: #3d3068; color: var(--ink); }
+body[data-tab="vinyl"] .sheet .btn.primary { background: linear-gradient(135deg, var(--accent), #8c2bff); border-color: transparent; color: #fff; }
+body[data-tab="vinyl"] .stat-tile, body[data-tab="vinyl"] .bar-track, body[data-tab="vinyl"] .progress { background: #241a44; }
+body[data-tab="vinyl"] .bar-fill, body[data-tab="vinyl"] .progress span { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+body[data-tab="vinyl"] .reader-stat, body[data-tab="vinyl"] .record-card { border-color: #3d3068; }
+body[data-tab="vinyl"] .result:hover, body[data-tab="vinyl"] .result:focus-visible { background: #2a1f4d; }
+.result .cover.sleeve, .record-card .cover.sleeve { aspect-ratio: 1; }

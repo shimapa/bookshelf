@@ -14,8 +14,8 @@
 <link rel="dns-prefetch" href="https://archive.org">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pacifico&family=Prata&display=swap">
-<link rel="stylesheet" href="app.css?v=46">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pacifico&family=Prata&family=Tektur:wght@600;700&display=swap">
+<link rel="stylesheet" href="app.css?v=47">
 </head>
 <body>
 
@@ -33,18 +33,24 @@
     <button data-action="export">Скачать резервную копию</button>
     <button data-action="import" class="owner-only">Загрузить резервную копию</button>
     <button data-action="gkey" class="owner-only">Ключ Google Books API…</button>
+    <button data-action="dkey" class="owner-only">Токен Discogs…</button>
     <button data-action="signin" class="visitor-only">Войти</button>
     <button data-action="signout" class="owner-only">Выйти</button>
-    <span class="version">Версия 46</span>
+    <span class="version">Версия 47</span>
   </div>
 </header>
+
+<nav id="tabs" class="tabs" aria-label="Разделы коллекции">
+  <button type="button" data-tab="books" class="on">Книги</button>
+  <button type="button" data-tab="vinyl">Пластинки</button>
+</nav>
 
 <section id="hero" class="hero" aria-label="Все книги корешками" hidden>
   <div id="heroShelf" class="hero-shelf"><div id="heroTrack" class="hero-track"></div></div>
 </section>
 
 <nav id="quick" class="quick" aria-label="Разделы">
-  <button type="button" data-open="pick"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="2.5" y="2.5" width="13" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="6.2" cy="6.2" r="1.2" fill="currentColor"/><circle cx="11.8" cy="11.8" r="1.2" fill="currentColor"/><circle cx="9" cy="9" r="1.2" fill="currentColor"/></svg>Что почитать?</button>
+  <button type="button" data-open="pick"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><rect x="2.5" y="2.5" width="13" height="13" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="6.2" cy="6.2" r="1.2" fill="currentColor"/><circle cx="11.8" cy="11.8" r="1.2" fill="currentColor"/><circle cx="9" cy="9" r="1.2" fill="currentColor"/></svg><span>Что почитать?</span></button>
   <button type="button" data-open="stats"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M3 15V9M7 15V4M11 15v-4M15 15V6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Статистика</button>
   <button type="button" data-open="map"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><path d="M2.5 3.5h13v11h-13zM9 3.5v5.5M2.5 9h4M11.5 9h4M9 12v2.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>Карта полок</button>
 </nav>
@@ -52,10 +58,13 @@
 <div class="tools">
   <input id="search" type="search" placeholder="Поиск книг" autocomplete="off">
   <select id="sort" aria-label="Сортировка">
-    <option value="publisher" selected>По издательству</option>
+    <option value="publisher" data-tab="books" selected>По издательству</option>
+    <option value="artist" data-tab="vinyl">По исполнителю</option>
+    <option value="label" data-tab="vinyl">По лейблу</option>
+    <option value="year" data-tab="vinyl">По году</option>
     <option value="added">Новые</option>
     <option value="title">По названию</option>
-    <option value="author">По автору</option>
+    <option value="author" data-tab="books">По автору</option>
     <option value="rating">По оценке</option>
   </select>
 </div>
@@ -66,9 +75,10 @@
 
 <main id="list" class="library"></main>
 <datalist id="seriesList"></datalist>
+<datalist id="formatList"><option value="LP"><option value="2LP"><option value="EP"><option value="7""><option value="10""><option value="Box"></datalist>
 
 <div id="empty" class="empty" hidden>
-  <p class="empty-title">Пока нет книг</p>
+  <p class="empty-title" data-label="emptyTitle">Пока нет книг</p>
   <p class="empty-hint">Нажмите <b>+</b> внизу слева, чтобы отсканировать книгу или добавить её вручную.</p>
 </div>
 
@@ -78,17 +88,21 @@
 <div id="addSheet" class="sheet-wrap" hidden>
   <div class="sheet add-sheet">
     <div id="addHero" class="add-hero" aria-hidden="true"></div>
-    <h2 class="add-title">Добавить книгу</h2>
+    <h2 id="addTitle" class="add-title">Добавить книгу</h2>
     <button type="button" id="addScan" class="add-option add-primary">
       <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M4 9V6a2 2 0 0 1 2-2h3M21 4h3a2 2 0 0 1 2 2v3M26 21v3a2 2 0 0 1-2 2h-3M9 26H6a2 2 0 0 1-2-2v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 10v10M12 10v10M15.5 10v10M18 10v10M21 10v10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-      <span><b>Сканировать ISBN или штрихкод</b><small>Наведите камеру на обратную сторону книги</small></span>
+      <span><b data-label="scanTitle">Сканировать ISBN или штрихкод</b><small data-label="scanHint">Наведите камеру на обратную сторону книги</small></span>
+    </button>
+    <button type="button" id="addLabel" class="add-option vinyl-only">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><circle cx="15" cy="15" r="12.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="15" cy="15" r="5.5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="15" cy="15" r="1.4" fill="currentColor"/></svg>
+      <span><b>Сфотографировать этикетку</b><small>Для старых пластинок без штрихкода — по каталожному номеру</small></span>
     </button>
     <button type="button" id="addManual" class="add-option">
       <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path d="M7 23l1.2-4.6L19.6 7a2.4 2.4 0 0 1 3.4 3.4L11.6 21.8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M17.5 9.2l3.3 3.3" stroke="currentColor" stroke-width="2"/></svg>
-      <span><b>Добавить вручную</b><small>По ISBN, названию или с чистого листа</small></span>
+      <span><b>Добавить вручную</b><small data-label="manualHint">По ISBN, названию или с чистого листа</small></span>
     </button>
     <form id="isbnForm" class="isbn-form" hidden>
-      <input id="isbnInput" placeholder="ISBN или название" enterkeyhint="search" autocomplete="off">
+      <input id="isbnInput" placeholder="ISBN или название" data-ph="search" enterkeyhint="search" autocomplete="off">
       <button type="submit" class="btn primary">Найти</button>
     </form>
     <button type="button" id="addBlank" class="link-btn add-blank" hidden>Заполнить карточку без поиска</button>
@@ -101,7 +115,7 @@
   <video id="video" playsinline muted></video>
   <div id="scanModes" class="scan-modes">
     <button type="button" data-mode="barcode">Штрихкод</button>
-    <button type="button" data-mode="text">Номер ISBN</button>
+    <button type="button" data-mode="text"><span data-label="textmode">Номер ISBN</span></button>
   </div>
   <div class="frame"></div>
   <p id="scanHint" class="scan-hint">Наведите на штрихкод</p>
@@ -115,36 +129,41 @@
       <span id="fCover" class="cover zoomable" title="Открыть обложку"></span>
       <div>
         <p id="sheetNote" class="note"></p>
-        <p class="isbn-line">ISBN <span id="fIsbnText"></span></p>
+        <p class="isbn-line"><span data-label="code">ISBN</span> <span id="fIsbnText"></span></p>
         <p id="sheetDetail" class="isbn-line" hidden></p>
         <a id="grLink" class="isbn-line gr-link" target="_blank" rel="noopener" hidden></a>
-        <button type="button" id="coverBtn" class="link-btn owner-only">Сменить обложку</button>
-        <button type="button" id="photoBtn" class="link-btn owner-only">Сфотографировать обложку</button>
+        <a id="dgLink" class="isbn-line gr-link" target="_blank" rel="noopener" hidden>Discogs</a>
+        <button type="button" id="coverBtn" class="link-btn owner-only" data-label="coverChange">Сменить обложку</button>
+        <button type="button" id="photoBtn" class="link-btn owner-only" data-label="coverPhoto">Сфотографировать обложку</button>
         <input id="photoInput" type="file" accept="image/*" capture="environment" hidden>
       </div>
     </div>
     <div id="coverPicker" class="cover-picker" hidden></div>
-    <label id="aboutField" class="about">О книге <textarea name="description" rows="2" placeholder="Читать, если хочешь… или Читать, чтобы окунуться…"></textarea></label>
-    <label>Название <input name="title" required></label>
-    <label>Автор <input name="authors"></label>
-    <label id="seriesField">Серия <input name="series" list="seriesList" placeholder="например, Гарри Поттер" autocomplete="off"></label>
+    <label id="aboutField" class="about"><span data-label="about">О книге</span> <textarea name="description" rows="2" placeholder="Читать, если хочешь… или Читать, чтобы окунуться…"></textarea></label>
+    <label><span data-label="title">Название</span> <input name="title" required></label>
+    <label><span data-label="authors">Автор</span> <input name="authors"></label>
+    <label id="seriesField" class="book-only">Серия <input name="series" list="seriesList" placeholder="например, Гарри Поттер" autocomplete="off"></label>
     <div class="row">
-      <label>Издательство <input name="publisher"></label>
+      <label><span data-label="publisher">Издательство</span> <input name="publisher"></label>
       <label class="short">Год <input name="year" inputmode="numeric"></label>
-      <label class="short">Страниц <input name="pages" inputmode="numeric"></label>
+      <label class="short book-only">Страниц <input name="pages" inputmode="numeric"></label>
     </div>
-    <div class="field">
+    <div class="row vinyl-only">
+      <label>Каталожный номер <input name="catno" placeholder="например, С60 27413 000" autocomplete="off"></label>
+      <label class="short">Формат <input name="format" list="formatList" placeholder="LP" autocomplete="off"></label>
+    </div>
+    <div class="field book-only">
       <span class="field-label">Категория</span>
       <div id="catTags" class="tags"></div>
       <input name="category" type="hidden">
     </div>
-    <div class="field">
+    <div class="field book-only">
       <span class="field-label">Место</span>
       <div id="locTags" class="tags"></div>
       <input name="location" type="hidden">
     </div>
     <div class="field">
-      <span class="field-label">Прочитали</span>
+      <span class="field-label" data-label="read">Прочитали</span>
       <div id="readTags" class="tags"></div>
       <input name="readBy" type="hidden">
       <input name="ratingPasha" type="hidden">
@@ -221,7 +240,7 @@
 <!-- What to read -->
 <div id="pickSheet" class="sheet-wrap" hidden>
   <div class="sheet pick-sheet">
-    <h2 class="add-title">Что почитать?</h2>
+    <h2 id="pickTitle" class="add-title">Что почитать?</h2>
     <nav id="pickWho" class="segments pick-segs" aria-label="Для кого"></nav>
     <nav id="pickCat" class="segments pick-segs" aria-label="Категория"></nav>
     <div id="pickCard" class="pick-card" aria-live="polite"></div>
@@ -237,7 +256,7 @@
 <!-- Statistics -->
 <div id="statsSheet" class="sheet-wrap" hidden>
   <div class="sheet stats-sheet">
-    <h2 class="add-title">Наша библиотека</h2>
+    <h2 id="statsTitle" class="add-title">Наша библиотека</h2>
     <div id="statsBody" class="stats-body"></div>
     <div class="sheet-actions"><span class="spacer"></span><button type="button" id="statsClose" class="btn">Закрыть</button></div>
   </div>
@@ -256,6 +275,6 @@
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=46"></script>
+<script src="app.js?v=47"></script>
 </body>
 </html>
