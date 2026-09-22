@@ -18,6 +18,9 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { margin: 0; }
+/* The page colour reaches the browser's own bars: light for the books, night-violet for the records. */
+html { background: var(--bg); }
+html[data-tab="vinyl"] { background: #2b1747; color-scheme: dark; }
 body {
   background: var(--bg);
   color: var(--ink);

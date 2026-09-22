@@ -834,7 +834,9 @@ function renderLocations() {
 function render() {
   document.body.dataset.tab = tab;
   // The browser paints its toolbars in this colour, so the address bar matches the top of the page.
+  document.documentElement.dataset.tab = tab;
   $('themeColor').content = tab === 'vinyl' ? '#3a1d5e' : '#f7f6f3';
+  $('statusBar').content = tab === 'vinyl' ? 'black-translucent' : 'default';
   document.querySelector('h1').textContent = t(tab === 'vinyl' ? 'Пластинки на полке' : 'Книжная полка');
   $('search').placeholder = t(tab === 'vinyl' ? 'Поиск пластинок' : 'Поиск книг');
   $('empty').querySelector('[data-label="emptyTitle"]').textContent = t(tab === 'vinyl' ? 'Пока нет пластинок' : 'Пока нет книг');
