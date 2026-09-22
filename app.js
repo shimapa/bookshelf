@@ -2287,6 +2287,8 @@ for (const ev of ['pointerdown', 'wheel', 'touchstart', 'keydown']) {
 const VINTAGE_BEFORE = 1991; // Soviet and early pressings go on their own shelf
 const isVintage = (b) => +b.year > 0 && +b.year < VINTAGE_BEFORE;
 
+const artistKey = (b) => b.sortAs || b.authors || '￿';
+
 function renderVinyl() {
   const q = '';
   const sort = 'artist';
@@ -2296,9 +2298,10 @@ function renderVinyl() {
   if (sort === 'title') shown.sort((a, b) => collator.compare(a.title, b.title));
   else if (sort === 'rating') shown.sort((a, b) => (b.rating || 0) - (a.rating || 0) || collator.compare(a.title, b.title));
   else if (sort === 'year') shown.sort((a, b) => (+b.year || 0) - (+a.year || 0) || collator.compare(a.title, b.title));
-  else if (sort === 'label') shown.sort((a, b) => collator.compare(publisherName(a.publisher) || '￿', publisherName(b.publisher) || '￿') || collator.compare(a.authors || '￿', b.authors || '￿'));
+  // A record can ask to stand elsewhere on the shelf: `sortAs` takes the place of the artist's name.
+  else if (sort === 'label') shown.sort((a, b) => collator.compare(publisherName(a.publisher) || '￿', publisherName(b.publisher) || '￿') || collator.compare(artistKey(a), artistKey(b)));
   else if (sort === 'added') shown.sort((a, b) => b.added - a.added);
-  else shown.sort((a, b) => collator.compare(a.authors || '￿', b.authors || '￿') || (+a.year || 0) - (+b.year || 0) || collator.compare(a.title, b.title));
+  else shown.sort((a, b) => collator.compare(artistKey(a), artistKey(b)) || (+a.year || 0) - (+b.year || 0) || collator.compare(a.title, b.title));
 
   renderHero();
   $('categories').hidden = true;
