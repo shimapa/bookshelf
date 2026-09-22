@@ -2254,37 +2254,28 @@ function renderCrate(hero) {
     $('heroTrack').innerHTML = html;
     settleCovers($('heroTrack'));
   }
-  crateDrift.start();
+  requestAnimationFrame(() => crateDrift.start());
 }
 
-// Slow sideways drift: about a sleeve every four seconds. Touching the crate stops it for a moment,
-// and it never runs when the shelf is off screen or the browser is asked to keep still.
+// Slow sideways drift, run by the browser's own animation engine so it stays smooth:
+// the track holds two copies of the crate and slides exactly one copy's width, then starts over.
 const crateDrift = (() => {
   const SPEED = 14; // px per second
-  let raf = null, last = 0, pausedUntil = 0, pos = 0, applied = -1;
-  const shelf = () => $('heroShelf');
-  const step = (now) => {
-    raf = requestAnimationFrame(step);
-    const el = shelf();
-    const half = el.scrollWidth / 2;
-    const dt = Math.min(100, now - last) / 1000;
-    last = now;
-    if (now < pausedUntil || document.hidden || !half) { pos = el.scrollLeft; return; }
-    if (Math.abs(el.scrollLeft - applied) > 2) pos = el.scrollLeft; // someone scrolled it by hand
-    // scrollLeft only takes whole pixels, so the position is kept here and written out rounded.
-    pos += SPEED * dt;
-    if (pos >= half) pos -= half; // back to the same place in the first copy
-    applied = Math.round(pos);
-    el.scrollLeft = applied;
-  };
+  let holdTimer = null;
   return {
     start() {
-      if (raf || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      last = performance.now();
-      raf = requestAnimationFrame(step);
+      const track = $('heroTrack');
+      const copy = track.scrollWidth / 2;
+      if (!copy) return;
+      track.style.setProperty('--drift', `${Math.round(copy / SPEED)}s`);
+      track.classList.add('drifting');
     },
-    stop() { if (raf) { cancelAnimationFrame(raf); raf = null; } },
-    hold(ms = 6000) { pausedUntil = performance.now() + ms; },
+    stop() { $('heroTrack').classList.remove('drifting'); },
+    hold(ms = 6000) {
+      $('heroShelf').classList.add('holding');
+      clearTimeout(holdTimer);
+      holdTimer = setTimeout(() => $('heroShelf').classList.remove('holding'), ms);
+    },
   };
 })();
 for (const ev of ['pointerdown', 'wheel', 'touchstart', 'keydown']) {

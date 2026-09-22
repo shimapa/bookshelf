@@ -771,7 +771,7 @@ body[data-tab="vinyl"] .menu button:hover { background: #2f2358; }
 
 /* the hero crate: sleeves leaning back, flipped through sideways */
 body[data-tab="vinyl"] .hero { --hero-max: clamp(150px, 32vw, 200px); }
-body[data-tab="vinyl"] .hero-track { min-height: 0; align-items: flex-end; padding-bottom: 22px; }
+body[data-tab="vinyl"] .hero-track { min-height: 0; align-items: flex-end; padding: 0 0 22px; } /* no trailing gap: the two copies must be the same width */
 body[data-tab="vinyl"] .hero-shelf {
   padding: 22px 16px 0;
   background:
@@ -779,6 +779,11 @@ body[data-tab="vinyl"] .hero-shelf {
     repeating-linear-gradient(90deg, rgb(47 227 242 / 0.14) 0 1px, transparent 1px 42px) bottom / 100% 90px no-repeat,
     linear-gradient(#1a1030, #2a1b4f);
 }
+/* the crate slides one full copy of itself, then jumps back to the start — which looks identical */
+.hero-track.drifting { animation: crate-drift var(--drift, 90s) linear infinite; will-change: transform; }
+.hero-shelf.holding .hero-track { animation-play-state: paused; }
+@keyframes crate-drift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .hero-track.drifting { animation: none; } }
 .crate-record {
   flex: none; width: clamp(96px, 26vw, 148px); margin-right: -34px; padding: 0; border: 0; background: none; cursor: pointer;
   rotate: -9deg; transform-origin: bottom left; transition: translate 0.25s cubic-bezier(0.16, 1, 0.3, 1), rotate 0.25s cubic-bezier(0.16, 1, 0.3, 1);
