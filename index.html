@@ -26,7 +26,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pacifico&family=Prata&family=Tektur:wght@600;700&display=swap">
-<link rel="stylesheet" href="app.css?v=51">
+<link rel="stylesheet" href="app.css?v=52">
 </head>
 <body>
 
@@ -50,7 +50,7 @@
     <button data-action="dkey" class="owner-only">Токен Discogs…</button>
     <button data-action="signin" class="visitor-only">Войти</button>
     <button data-action="signout" class="owner-only">Выйти</button>
-    <span class="version">Версия 51</span>
+    <span class="version">Версия 52</span>
   </div>
 </header>
 
@@ -191,6 +191,7 @@
     <label>Заметки <textarea name="notes" rows="2" placeholder="Состояние, кому дал почитать…"></textarea></label>
     <div class="sheet-actions">
       <button type="button" id="deleteBtn" class="btn danger owner-only" hidden>Удалить</button>
+      <button type="button" id="editBtn" class="btn primary owner-only" hidden>Редактировать</button>
       <span class="spacer"></span>
       <button type="button" id="cancelBtn" class="btn">Отмена</button>
       <button type="submit" id="saveBtn" class="btn primary owner-only">Добавить</button>
@@ -294,6 +295,6 @@
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=51"></script>
+<script src="app.js?v=52"></script>
 </body>
 </html>

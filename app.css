@@ -565,6 +565,13 @@ html:has(.sheet-wrap:not([hidden])), html:has(.scanner:not([hidden])) { overflow
 .row { display: flex; gap: 8px; }
 .row .short { flex: 0 0 84px; }
 .sheet-actions { display: flex; gap: 8px; margin-top: 6px; }
+/* Reading view: the card shows the record, it doesn't ask for anything */
+.sheet-wrap.viewing .sheet input, .sheet-wrap.viewing .sheet textarea {
+  border-color: transparent; background: none; padding-left: 0; padding-right: 0; cursor: default; font-size: 17px;
+}
+.sheet-wrap.viewing .sheet label { gap: 1px; }
+.sheet-wrap.viewing .chip { cursor: default; }
+.sheet-wrap.viewing .cover-picker, .sheet-wrap.viewing .edit-only { display: none; }
 .spacer { flex: 1; }
 
 .toast {

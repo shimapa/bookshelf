@@ -60,7 +60,7 @@ const EN = {
   'Не нашлось в Discogs — заполните сами': 'Not found on Discogs — fill it in yourself', 'Заполните данные пластинки': 'Fill in the record’s details',
   'Сфотографировать этикетку': 'Photograph the label', 'Для старых пластинок без штрихкода — по каталожному номеру': 'For older records with no barcode — by catalogue number',
   'Каталожный номер': 'Catalogue number', 'например, С60 27413 000': 'e.g. С60 27413 000', 'Формат': 'Format', 'Альбом': 'Album', 'Исполнитель': 'Artist', 'Лейбл': 'Label',
-  'Слушали': 'Listened to', 'Об альбоме': 'About the album', 'Сменить конверт': 'Change the sleeve', 'Сфотографировать конверт': 'Photograph the sleeve', 'Штрихкод': 'Barcode', 'Слушать, если хочешь…': 'Listen if you want to…', 'Поместите каталожный номер в рамку': 'Fit the catalogue number in the frame',
+  'Слушали': 'Listened to', 'Редактировать': 'Edit', 'Об альбоме': 'About the album', 'Сменить конверт': 'Change the sleeve', 'Сфотографировать конверт': 'Photograph the sleeve', 'Штрихкод': 'Barcode', 'Слушать, если хочешь…': 'Listen if you want to…', 'Поместите каталожный номер в рамку': 'Fit the catalogue number in the frame',
   'Что послушать?': 'What to listen to?', 'Снять фото': 'Take a photo', 'Ввести номер': 'Type the number', 'Читаю фото…': 'Reading the photo…',
   'На фото не видно номера — попробуйте ещё раз': 'No number visible in the photo — try again', 'Не удалось прочитать фото': 'Couldn’t read the photo', 'Сканировать штрихкод': 'Scan the barcode', 'Наведите камеру на штрихкод на конверте': 'Point the camera at the barcode on the sleeve',
   'По исполнителю, альбому или с чистого листа': 'By artist, album or from scratch', 'Исполнитель, альбом или номер': 'Artist, album or catalogue number', 'Слушал Паша': 'Pasha listened', 'Слушала Алина': 'Alina listened', 'Никто не слушал': 'Nobody has listened', 'Пластинки на полке': 'Records on the shelf', 'Пока нет пластинок': 'No records yet', 'Поиск пластинок': 'Search records', 'Наши пластинки': 'Our records', 'По исполнителю': 'By artist', 'По лейблу': 'By label', 'По году': 'By year',
@@ -1227,6 +1227,9 @@ function closeFan() {
 /* ---------- book sheet ---------- */
 
 let editing = null; // { book, isNew, fromScan }
+// A record opens as a page to look at; editing starts when the owner asks for it.
+let viewing = false;
+const canEdit = () => !!token && !viewing;
 
 function openSheet(book, { isNew = false, fromScan = false, note = '', warn = false, detail = '' } = {}) {
   editing = { book, isNew, fromScan, lang }; // the description being edited stays in the language it was opened in
@@ -1249,6 +1252,7 @@ function openSheet(book, { isNew = false, fromScan = false, note = '', warn = fa
   $('dgLink').hidden = !book.discogsUrl;
   if (book.discogsUrl) $('dgLink').href = book.discogsUrl;
   $('fCover').className = `cover zoomable${vinyl ? ' sleeve' : ''}`;
+  for (const id of ['coverBtn', 'photoBtn']) $(id).classList.toggle('edit-only', true);
   $('fCover').innerHTML = coverInner(book, false);
   settleCovers($('fCover'));
   $('coverPicker').hidden = true;
@@ -1261,13 +1265,8 @@ function openSheet(book, { isNew = false, fromScan = false, note = '', warn = fa
     $('grLink').href = book.goodreadsUrl;
     $('grLink').textContent = `Goodreads ${book.rating.toFixed(2)} · ${book.ratingsCount.toLocaleString(locale())} ${plural(book.ratingsCount, ['оценка', 'оценки', 'оценок'])}`;
   }
-  for (const el of f.elements) if (el.name) el.readOnly = !token; // visitors get a read-only view
-  $('cancelBtn').textContent = t(token ? 'Отмена' : 'Закрыть');
-  $('saveBtn').textContent = t(isNew ? 'Добавить' : 'Сохранить');
-  $('deleteBtn').hidden = isNew;
-  $('saveNextBtn').hidden = !(isNew && fromScan);
-  $('aboutField').hidden = !token && !book[fieldKey('description')];
-  $('seriesField').hidden = !token && !book.series;
+  viewing = !isNew && vinyl && !!token; // records start as a page; books open ready to edit
+  applySheetMode();
   $('sheet').hidden = false;
   $('sheet').querySelector('.sheet').scrollTop = 0;
   for (const el of f.querySelectorAll('textarea')) fitTextarea(el);
@@ -1288,7 +1287,7 @@ function closeSheet() {
 
 $('bookForm').addEventListener('submit', (e) => {
   e.preventDefault();
-  if (!token) return closeSheet(); // read-only view (Enter in a field still submits the form)
+  if (!canEdit()) return closeSheet(); // reading view (Enter in a field still submits the form)
   const f = e.target;
   const { isNew } = editing;
   // The list may have been refreshed while the sheet was open: edit the current copy of the book.
@@ -1321,6 +1320,38 @@ $('bookForm').addEventListener('submit', (e) => {
   if (isNew) updateRatings();
 });
 
+// Reading view: the fields are plain lines, the empty ones step aside, and nothing can be typed over by accident.
+function applySheetMode() {
+  const f = $('bookForm');
+  const { isNew, fromScan, book } = editing;
+  const edit = canEdit();
+  $('sheet').classList.toggle('viewing', !edit);
+  for (const el of f.elements) if (el.name) el.readOnly = !edit;
+  for (const label of f.querySelectorAll('label[data-field], label:has(input[name]), label:has(textarea[name])')) {
+    const field = label.querySelector('input[name], textarea[name]');
+    label.hidden = !edit && !field.value.trim();
+  }
+  for (const field of f.querySelectorAll('.field')) field.hidden = !edit && !field.querySelector('.chip');
+  $('editBtn').hidden = edit || !token;
+  $('saveBtn').hidden = !edit;
+  $('deleteBtn').hidden = isNew || !edit;
+  $('saveNextBtn').hidden = !(isNew && fromScan && edit);
+  $('cancelBtn').textContent = t(edit ? 'Отмена' : 'Закрыть');
+  $('saveBtn').textContent = t(isNew ? 'Добавить' : 'Сохранить');
+  $('aboutField').hidden = !edit && !book[fieldKey('description')];
+  $('seriesField').hidden = (!edit && !book.series) || isVinyl(book);
+  renderLocTags();
+  renderCatTags();
+  renderReadTags();
+  for (const el of f.querySelectorAll('textarea')) fitTextarea(el);
+}
+
+$('editBtn').addEventListener('click', () => {
+  viewing = false;
+  applySheetMode();
+  $('sheet').querySelector('.sheet').scrollTop = 0;
+});
+
 $('cancelBtn').addEventListener('click', closeSheet);
 $('sheet').addEventListener('click', (e) => { if (e.target.id === 'sheet') closeSheet(); });
 $('deleteBtn').addEventListener('click', () => {
@@ -1339,7 +1370,7 @@ $('list').addEventListener('click', (e) => {
 /* ---------- cover picker ---------- */
 
 $('coverBtn').addEventListener('click', async () => {
-  if (!editing || !token) return;
+  if (!editing || !canEdit()) return;
   const sheetBook = editing.book;
   const picker = $('coverPicker');
   picker.hidden = false;
@@ -1355,7 +1386,7 @@ $('coverBtn').addEventListener('click', async () => {
 
 /* ---------- cover photo ---------- */
 
-$('photoBtn').addEventListener('click', () => { if (editing && token) $('photoInput').click(); });
+$('photoBtn').addEventListener('click', () => { if (editing && canEdit()) $('photoInput').click(); });
 
 $('photoInput').addEventListener('change', async (e) => {
   const file = e.target.files[0];
@@ -1579,20 +1610,20 @@ function renderLocTags() {
   const current = $('bookForm').elements.location.value;
   const names = locations().map(([name]) => name);
   if (current && !names.includes(current)) names.push(current);
-  const shown = token ? names : names.filter((n) => n === current);
+  const shown = canEdit() ? names : names.filter((n) => n === current);
   $('locTags').innerHTML = shown.map((n) =>
     `<button type="button" class="chip${n === current ? ' on' : ''}" aria-pressed="${n === current}" data-loc="${esc(n)}" data-color="${locColor(n)}">${esc(roomLabel(n))}</button>`).join('') +
-    (token ? `<button type="button" class="chip chip-add" data-add>${PLUS}${t('Новое место')}</button>` : '') +
-    (!token && !current ? `<span class="tags-empty">${t('не указано')}</span>` : '');
+    (canEdit() ? `<button type="button" class="chip chip-add" data-add>${PLUS}${t('Новое место')}</button>` : '') +
+    (!canEdit() && !current ? `<span class="tags-empty">${t('не указано')}</span>` : '');
 }
 
 // Category: two tags, one can be chosen; visitors only see the book's category.
 function renderCatTags() {
   const current = $('bookForm').elements.category.value;
-  const shown = Object.entries(CATEGORIES).filter(([key]) => token || key === current);
+  const shown = Object.entries(CATEGORIES).filter(([key]) => canEdit() || key === current);
   $('catTags').innerHTML = shown.map(([key, label]) =>
     `<button type="button" class="chip${key === current ? ' on' : ''}" aria-pressed="${key === current}" data-cat="${key}">${label}</button>`).join('') +
-    (!token && !current ? `<span class="tags-empty">${t('не указана')}</span>` : '');
+    (!canEdit() && !current ? `<span class="tags-empty">${t('не указана')}</span>` : '');
 }
 
 // Readers: each person has a read toggle with a check mark and their own five stars.
@@ -1603,19 +1634,19 @@ const readersOf = (value = '') => value.split(',').filter((k) => k in READERS);
 function renderReadTags() {
   const f = $('bookForm').elements;
   const current = readersOf(f.readBy.value);
-  const shown = Object.entries(READERS).filter(([key]) => token || current.includes(key));
+  const shown = Object.entries(READERS).filter(([key]) => canEdit() || current.includes(key));
   $('readTags').innerHTML = shown.map(([key, name]) => {
     const on = current.includes(key);
     const stars = +f[RATING_FIELD[key]].value || 0;
-    const starBtns = [1, 2, 3, 4, 5].map((n) => `<button type="button" class="star${n <= stars ? ' on' : ''}" data-reader="${key}" data-stars="${n}" aria-label="${name}: ${n} ${t('из')} 5"${token ? '' : ' disabled'}>${STAR_LARGE}</button>`).join('');
+    const starBtns = [1, 2, 3, 4, 5].map((n) => `<button type="button" class="star${n <= stars ? ' on' : ''}" data-reader="${key}" data-stars="${n}" aria-label="${name}: ${n} ${t('из')} 5"${canEdit() ? '' : ' disabled'}>${STAR_LARGE}</button>`).join('');
     return `<div class="reader-row"><button type="button" class="chip read-chip${on ? ' on' : ''}" aria-pressed="${on}" data-reader="${key}">${CHECK}${name}</button>` +
-      (token || stars ? `<span class="stars" role="group" aria-label="${t('Оценка:')} ${name}">${starBtns}</span>` : '') + '</div>';
-  }).join('') + (!token && !current.length ? `<span class="tags-empty">${t('пока никто')}</span>` : '');
+      (canEdit() || stars ? `<span class="stars" role="group" aria-label="${t('Оценка:')} ${name}">${starBtns}</span>` : '') + '</div>';
+  }).join('') + (!canEdit() && !current.length ? `<span class="tags-empty">${t('пока никто')}</span>` : '');
 }
 
 $('readTags').addEventListener('click', (e) => {
   const btn = e.target.closest('button');
-  if (!btn || !token) return;
+  if (!btn || !canEdit()) return;
   const f = $('bookForm').elements;
   const key = btn.dataset.reader;
   let current = readersOf(f.readBy.value);
@@ -1634,7 +1665,7 @@ $('readTags').addEventListener('click', (e) => {
 
 $('catTags').addEventListener('click', (e) => {
   const chip = e.target.closest('button');
-  if (!chip || !token) return;
+  if (!chip || !canEdit()) return;
   const field = $('bookForm').elements.category;
   field.value = field.value === chip.dataset.cat ? '' : chip.dataset.cat;
   renderCatTags();
@@ -1642,7 +1673,7 @@ $('catTags').addEventListener('click', (e) => {
 
 $('locTags').addEventListener('click', (e) => {
   const chip = e.target.closest('button');
-  if (!chip || !token) return;
+  if (!chip || !canEdit()) return;
   const field = $('bookForm').elements.location;
   if (!('add' in chip.dataset)) {
     field.value = chip.dataset.loc === field.value ? '' : chip.dataset.loc;
