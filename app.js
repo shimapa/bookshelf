@@ -842,6 +842,7 @@ function render() {
   $('empty').querySelector('[data-label="emptyTitle"]').textContent = t(tab === 'vinyl' ? 'Пока нет пластинок' : 'Пока нет книг');
   $('quick').querySelector('[data-open="pick"] span').textContent = t(tab === 'vinyl' ? 'Что послушать?' : 'Что почитать?');
   for (const btn of $('tabs').querySelectorAll('button')) btn.classList.toggle('on', btn.dataset.tab === tab);
+  moveTabThumb();
   for (const el of document.querySelectorAll('#sort option')) el.hidden = el.dataset.tab && el.dataset.tab !== tab;
   if ($('sort').selectedOptions[0]?.hidden) $('sort').value = tab === 'vinyl' ? 'artist' : 'publisher';
   if (tab === 'vinyl') return renderVinyl();
@@ -2814,6 +2815,16 @@ $('categories').addEventListener('click', (e) => {
   catFilter = seg.dataset.cat === '*' ? null : seg.dataset.cat;
   render();
 });
+// The lit pill slides between the two halves; its size follows whatever the labels measure.
+function moveTabThumb() {
+  const active = $('tabs').querySelector('button.on');
+  if (!active) return;
+  $('tabs').style.setProperty('--thumb-x', `${active.offsetLeft}px`);
+  $('tabs').style.setProperty('--thumb-w', `${active.offsetWidth}px`);
+}
+document.fonts?.ready.then(moveTabThumb);
+addEventListener('resize', moveTabThumb);
+
 $('tabs').addEventListener('click', (e) => {
   const btn = e.target.closest('button');
   if (!btn || btn.dataset.tab === tab) return;
