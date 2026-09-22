@@ -1227,7 +1227,7 @@ function closeFan() {
 /* ---------- book sheet ---------- */
 
 let editing = null; // { book, isNew, fromScan }
-// A record opens as a page to look at; editing starts when the owner asks for it.
+// A card opens as a page to look at; editing starts when the owner asks for it.
 let viewing = false;
 const canEdit = () => !!token && !viewing;
 
@@ -1265,7 +1265,7 @@ function openSheet(book, { isNew = false, fromScan = false, note = '', warn = fa
     $('grLink').href = book.goodreadsUrl;
     $('grLink').textContent = `Goodreads ${book.rating.toFixed(2)} · ${book.ratingsCount.toLocaleString(locale())} ${plural(book.ratingsCount, ['оценка', 'оценки', 'оценок'])}`;
   }
-  viewing = !isNew && vinyl && !!token; // records start as a page; books open ready to edit
+  viewing = !isNew && !!token; // a card opens as a page to read; the owner taps "Edit" to change it
   applySheetMode();
   $('sheet').hidden = false;
   $('sheet').querySelector('.sheet').scrollTop = 0;
