@@ -2206,11 +2206,10 @@ const VINTAGE_BEFORE = 1991; // Soviet and early pressings go on their own shelf
 const isVintage = (b) => +b.year > 0 && +b.year < VINTAGE_BEFORE;
 
 function renderVinyl() {
-  const q = $('search').value.trim().toLowerCase();
-  const sort = $('sort').value;
+  const q = '';
+  const sort = 'artist';
   const mine = tabItems();
-  let shown = mine.filter((b) => inReadFilter(b) &&
-    (!q || [b.title, b.authors, b.publisher, b.catno, b.isbn, b.format, b.notes].some((f) => (f || '').toLowerCase().includes(q))));
+  let shown = [...mine];
 
   if (sort === 'title') shown.sort((a, b) => collator.compare(a.title, b.title));
   else if (sort === 'rating') shown.sort((a, b) => (b.rating || 0) - (a.rating || 0) || collator.compare(a.title, b.title));
@@ -2220,9 +2219,9 @@ function renderVinyl() {
   else shown.sort((a, b) => collator.compare(a.authors || '￿', b.authors || '￿') || (+a.year || 0) - (+b.year || 0) || collator.compare(a.title, b.title));
 
   renderHero();
-  renderReaderFilter();
   $('categories').hidden = true;
   $('locations').hidden = true;
+  $('readers').hidden = true;
   $('count').textContent = mine.length ? `${mine.length} ${plural(mine.length, ITEM_FORMS.vinyl)}` : '';
   $('empty').hidden = mine.length > 0;
 
@@ -2627,6 +2626,8 @@ $('menu').addEventListener('click', (e) => {
   if (action === 'import') $('importFile').click();
   if (action === 'signin') { $('signin').hidden = false; $('signinForm').elements.token.focus(); }
   if (action === 'signout') signOut();
+  if (action === 'pick') openPick();
+  if (action === 'stats') openStats();
   if (action === 'dkey') {
     const v = prompt(t('Токен Discogs (необязательно: с ним приходят картинки конвертов). Оставьте пустым, чтобы удалить.'), localStorage.getItem(DKEY_KEY) || '');
     if (v === null) return;

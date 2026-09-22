@@ -711,7 +711,13 @@ input[readonly], textarea[readonly] { background: transparent; border-color: tra
 .tabs button.on { background: var(--card); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgb(40 30 20 / 0.14); }
 .tabs button:not(.on):hover { color: var(--ink); }
 #sheet[data-kind="book"] .vinyl-only, #sheet[data-kind="vinyl"] .book-only { display: none; }
-body[data-tab="books"] .vinyl-only { display: none; }
+body[data-tab="books"] .vinyl-only, body[data-tab="vinyl"] .book-only { display: none; }
+/* the record spinning next to the title */
+.vinyl-icon { flex: none; line-height: 0; align-self: center; margin-right: 2px; animation: spin 3.6s linear infinite; }
+.vinyl-icon svg { display: block; filter: drop-shadow(0 0 6px rgb(255 61 154 / 0.45)); }
+@keyframes spin { to { rotate: 360deg; } }
+@media (prefers-reduced-motion: reduce) { .vinyl-icon { animation: none; } }
+body[data-tab="vinyl"] .brand { align-items: center; column-gap: 8px; }
 body[data-tab="vinyl"] .quick [data-open="map"] { display: none; }
 
 /* ---------- the records tab: a night-drive palette, neon and chrome ---------- */
