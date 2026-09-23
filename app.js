@@ -515,12 +515,16 @@ async function cgGallery(isbn) {
 // Chitai-gorod often shows a 3D product shot on white instead of a flat cover. Pixels of cross-origin images
 // can't be read directly, so a small copy is sampled through images.weserv.nl, an open image proxy with CORS.
 const IMG_PROXY = 'https://images.weserv.nl/?url=';
+// Some covers are already stored as proxy links; asking the proxy for a proxy link gives a 404,
+// so the original address is unwrapped first and the new options applied to it.
+const rawUrl = (url = '') => (url.startsWith(IMG_PROXY) ? decodeURIComponent(url.slice(IMG_PROXY.length).split('&')[0]) : url);
+const proxied = (url, options) => `${IMG_PROXY}${encodeURIComponent(rawUrl(url))}&${options}`;
 
 async function hasWhiteFrame(url) {
   try {
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.src = `${IMG_PROXY}${encodeURIComponent(url)}&w=60&h=90&fit=inside`;
+    img.src = proxied(url, 'w=60&h=90&fit=inside');
     await Promise.race([img.decode(), new Promise((_, no) => setTimeout(no, 8000))]);
     const c = document.createElement('canvas');
     const w = (c.width = img.naturalWidth), h = (c.height = img.naturalHeight);
@@ -541,7 +545,7 @@ async function hasWhiteFrame(url) {
 }
 
 // Trimming the white background and cropping to 2:3 from the right drops the spine: the shot reads as a flat cover.
-const flattenShot = (url) => `${IMG_PROXY}${encodeURIComponent(url)}&trim=12&w=400&h=600&fit=cover&a=right`;
+const flattenShot = (url) => proxied(url, 'trim=12&w=400&h=600&fit=cover&a=right');
 
 async function cleanCgCover(url) {
   return url.includes('img-gorod.ru') && !url.startsWith(IMG_PROXY) && await hasWhiteFrame(url) ? flattenShot(url) : url;
@@ -695,7 +699,7 @@ function coverInner(b, lazy = true) {
   // Open Library answers every cover request with a redirect to archive.org, slow even when cached;
   // the image proxy serves it in one cached hop. The original URL stays as a fallback.
   const viaProxy = b.cover.includes('covers.openlibrary.org') && !b.cover.startsWith(IMG_PROXY); // a cover already routed through the proxy must not be wrapped twice
-  const src = viaProxy ? `${IMG_PROXY}${encodeURIComponent(b.cover)}&w=400` : b.cover;
+  const src = viaProxy ? proxied(b.cover, 'w=400') : b.cover;
   return clothCover(b) + `<img src="${esc(src)}"${viaProxy ? ` data-fallback="${esc(b.cover)}"` : ''} alt=""${lazy ? ' loading="lazy"' : ''}>`;
 }
 
@@ -1125,7 +1129,7 @@ async function coverColor(url) {
   try {
     const img = new Image();
     img.crossOrigin = 'anonymous';
-    img.src = `${IMG_PROXY}${encodeURIComponent(url)}&w=16&h=24&fit=cover`;
+    img.src = proxied(url, 'w=16&h=24&fit=cover');
     await Promise.race([img.decode(), new Promise((_, no) => setTimeout(no, 10000))]);
     const c = document.createElement('canvas');
     c.width = img.naturalWidth; c.height = img.naturalHeight;
