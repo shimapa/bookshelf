@@ -832,8 +832,8 @@ body[data-tab="vinyl"] .hero-shelf {
 .crate-record:focus-visible .crate-sleeve { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 
 /* the shelves: square sleeves with the record peeking out */
-/* The crate shelf itself spans the window, so the planks inside it reach both edges and are clipped there. */
-.crate { row-gap: 46px; margin-inline: calc(50% - 50vw); padding-inline: calc(50vw - 50%); }
+/* The record shelves keep to the page's column; only the crate above runs the full width. */
+.crate { row-gap: 46px; }
 .record { display: flex; flex-direction: column; min-width: 0; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: inherit; }
 .record .stand { position: relative; padding-bottom: 12px; }
 .record .stand::after {
