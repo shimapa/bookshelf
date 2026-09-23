@@ -550,8 +550,8 @@ async function cleanCgCover(url) {
 // Goodreads has no public API and sends no CORS headers; its search autocomplete returns the rating.
 // Primary: a small server route on shimansky.nl that queries it. Fallback: a public CORS proxy (often rate-limited).
 const GOODREADS = 'https://www.goodreads.com';
-// Same-origin when served from shimansky.nl/books, cross-origin (CORS-allowed) from other hosts.
-const RATING_API = location.pathname.startsWith('/books') ? '/api/goodreads' : 'https://shimansky.nl/api/goodreads';
+// Same-origin when served from shimansky.nl, cross-origin (CORS-allowed) from other hosts.
+const RATING_API = location.hostname === 'shimansky.nl' ? '/api/goodreads' : 'https://shimansky.nl/api/goodreads';
 
 async function fromGoodreads(isbn) {
   try {
