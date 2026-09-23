@@ -853,7 +853,8 @@ body[data-tab="vinyl"] .hero-shelf {
 }
 /* the disc itself, sliding out from behind the sleeve on hover */
 .record .disc {
-  position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+  /* the disc lives inside the sleeve's square, never below it, so nothing pokes out over the plank */
+  position: absolute; inset: 0 0 12px; border-radius: 50%; pointer-events: none;
   background:
     radial-gradient(circle at 50% 50%, #d8cfe8 0 8%, #100c1c 8.5% 14%, #1a1526 14% 15%, #0d0a16 15% 100%),
     repeating-radial-gradient(circle at 50% 50%, rgb(255 255 255 / 0.05) 0 2px, transparent 2px 4px);
