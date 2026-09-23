@@ -694,7 +694,7 @@ function coverInner(b, lazy = true) {
   if (localPhotos.has(b.cover)) return clothCover(b) + `<img src="${localPhotos.get(b.cover)}" alt="">`;
   // Open Library answers every cover request with a redirect to archive.org, slow even when cached;
   // the image proxy serves it in one cached hop. The original URL stays as a fallback.
-  const viaProxy = b.cover.includes('covers.openlibrary.org');
+  const viaProxy = b.cover.includes('covers.openlibrary.org') && !b.cover.startsWith(IMG_PROXY); // a cover already routed through the proxy must not be wrapped twice
   const src = viaProxy ? `${IMG_PROXY}${encodeURIComponent(b.cover)}&w=400` : b.cover;
   return clothCover(b) + `<img src="${esc(src)}"${viaProxy ? ` data-fallback="${esc(b.cover)}"` : ''} alt=""${lazy ? ' loading="lazy"' : ''}>`;
 }
