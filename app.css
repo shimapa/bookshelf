@@ -831,11 +831,14 @@ body[data-tab="vinyl"] .hero-shelf {
 .crate-record:focus-visible .crate-sleeve { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 
 /* the shelves: square sleeves with the record peeking out */
-.crate { row-gap: 46px; }
+/* The neon planks run to the edges of the window; nothing cuts them at the page's width. */
+.crate { row-gap: 46px; overflow-x: visible; }
 .record { display: flex; flex-direction: column; min-width: 0; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: inherit; }
 .record .stand { position: relative; padding-bottom: 12px; }
 .record .stand::after {
-  content: ''; position: absolute; bottom: -10px; height: 20px; left: -100vw; right: -100vw; pointer-events: none;
+  /* exactly the width of the window, so the plank reaches both edges without making the page any wider */
+  content: ''; position: absolute; bottom: -10px; height: 20px; left: calc(50% - 50vw); right: calc(50% - 50vw); pointer-events: none;
+  z-index: -1;
   background: linear-gradient(var(--plank-top) 0 2px, var(--plank-face) 2px 10px, #2a1a4d 10px 13px, transparent 13px);
   box-shadow: 0 -6px 18px -6px rgb(255 61 154 / 0.5);
 }
