@@ -690,6 +690,26 @@ input[readonly], textarea[readonly] { background: transparent; border-color: tra
 
 /* ---------- map of the shelves: a floor plan ---------- */
 .map-sheet { max-width: 640px; }
+/* ---------- about the site ---------- */
+.top-actions .icon-btn:not(:last-child) { margin-right: 0; }
+.help-sheet { max-width: 480px; }
+/* four controls on a phone: squeeze them so the page title still fits */
+@media (max-width: 420px) {
+  .top-actions { gap: 2px; }
+  .top-actions .icon-btn { padding: 6px; }
+  .top-actions .icon-btn:last-child { margin-right: -6px; }
+  .lang-switch, html body[data-tab] .lang-switch { padding: 0; background: none; }
+  .lang-switch button { padding: 6px; }
+  .lang-switch button.on { display: none; } /* only the other language shows: tap it to switch */
+  .brand h1 { font-size: 22px; }
+}
+.help-lead { margin: -4px 0 0; font-size: 16px; line-height: 1.5; }
+.help-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.help-list li { display: flex; flex-direction: column; gap: 2px; padding-left: 14px; border-left: 2px solid var(--line); }
+.help-list b { font-weight: 600; font-size: 14px; }
+.help-list span { font-size: 14px; line-height: 1.45; color: var(--muted); }
+.help-foot { margin: 0; font-size: 13px; color: var(--muted); }
+body[data-tab="vinyl"] .help-list li { border-left-color: #3d3068; }
 .map-hint { margin: -6px 0 4px; text-align: center; font-size: 13px; color: var(--muted); }
 .map-plan {
   display: grid; grid-template-columns: 1fr 1fr; gap: 0;
@@ -791,7 +811,7 @@ body[data-tab="vinyl"] h1, body[data-tab="vinyl"] .shelf-title, body[data-tab="v
   text-shadow: 0 0 22px rgb(255 61 154 / 0.35);
 }
 body[data-tab="vinyl"] h1 { font-size: 24px; line-height: 34px; }
-@media (max-width: 420px) { body[data-tab="vinyl"] h1 { font-size: 19px; } }
+@media (max-width: 420px) { body[data-tab="vinyl"] h1 { font-size: 18.5px; } }
 body[data-tab="vinyl"] .tools input, body[data-tab="vinyl"] .tools select { background: #241a44; border-color: #3d3068; color: var(--ink); }
 body[data-tab="vinyl"] .tools input::placeholder { color: #8a7cb0; }
 body[data-tab="vinyl"] .chip { background: #241a44; border-color: #3d3068; color: var(--ink); }

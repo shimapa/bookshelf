@@ -26,7 +26,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pacifico&family=Prata&family=Tektur:wght@600;700&display=swap">
-<link rel="stylesheet" href="app.css?v=73">
+<link rel="stylesheet" href="app.css?v=74">
 </head>
 <body>
 
@@ -46,6 +46,7 @@
   <div class="top-actions">
   <div id="langSwitch" class="lang-switch" role="group" aria-label="Язык"><button type="button" data-lang="ru" lang="ru">RU</button><button type="button" data-lang="en" lang="en">EN</button></div>
   <button id="menuBtn" class="icon-btn" aria-label="Меню"><svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><circle cx="4" cy="10" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="16" cy="10" r="1.6"/></svg></button>
+  <button id="helpBtn" class="icon-btn" aria-label="Что это за сайт?"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="10" cy="10" r="7.6" stroke-width="1.5"/><path d="M7.7 7.9a2.4 2.4 0 1 1 3.4 2.2c-.7.3-1.1.9-1.1 1.6v.3" stroke-width="1.6" stroke-linecap="round"/><circle cx="10" cy="14.3" r=".6" fill="currentColor" stroke-width="1.2"/></svg></button>
   </div>
   <div id="menu" class="menu" hidden>
     <button data-action="export">Скачать резервную копию</button>
@@ -56,7 +57,7 @@
     <button data-action="dkey" class="owner-only">Токен Discogs…</button>
     <button data-action="signin" class="visitor-only">Войти</button>
     <button data-action="signout" class="owner-only">Выйти</button>
-    <span class="version">Версия 73</span>
+    <span class="version">Версия 74</span>
   </div>
 </header>
 
@@ -290,6 +291,23 @@
   </div>
 </div>
 
+<!-- About the site -->
+<div id="helpSheet" class="sheet-wrap" hidden>
+  <div class="sheet help-sheet">
+    <h2 class="add-title">Что это за сайт</h2>
+    <p class="help-lead">Домашняя коллекция Паши, Алины и Феди: книги и виниловые пластинки, которые стоят у нас дома.</p>
+    <ul class="help-list">
+      <li><b>Книги и винил</b><span>Переключайте вкладки вверху страницы.</span></li>
+      <li><b>Карточка</b><span>Нажмите на обложку — откроется описание, год, оценки и место, где стоит книга.</span></li>
+      <li><b>Поиск</b><span>Ищите по названию или автору, фильтруйте по комнате и по тому, кто уже прочитал.</span></li>
+      <li><b>Подсказки</b><span>«Что почитать?» выберет книгу наугад, «Статистика» и «Карта полок» покажут коллекцию целиком.</span></li>
+      <li><b>Пополнение</b><span>Добавлять и править могут только хозяева после входа: книги сканируются по штрихкоду, пластинки — по штрихкоду или каталожному номеру.</span></li>
+    </ul>
+    <p class="help-foot">Описания и обложки подтягиваются из открытых каталогов, оценки — с Goodreads и Discogs.</p>
+    <div class="sheet-actions"><span class="spacer"></span><button type="button" id="helpClose" class="btn">Понятно</button></div>
+  </div>
+</div>
+
 <!-- Map of the shelves -->
 <div id="mapSheet" class="sheet-wrap" hidden>
   <div class="sheet map-sheet">
@@ -303,6 +321,6 @@
 <div id="toast" class="toast" hidden></div>
 <input id="importFile" type="file" accept="application/json" hidden>
 
-<script src="app.js?v=73"></script>
+<script src="app.js?v=74"></script>
 </body>
 </html>

@@ -68,6 +68,14 @@ const EN = {
   'Токен Discogs (необязательно: с ним приходят картинки конвертов). Оставьте пустым, чтобы удалить.': 'Discogs token (optional: it brings the sleeve pictures). Leave empty to remove it.',
   'Исполнители': 'Artists', 'Лейблы': 'Labels', 'исполнителей': 'artists', 'лейблов': 'labels', 'до 1991 года': 'from before 1991', 'пока без оценок': 'no ratings yet',
   'Самая старая': 'Oldest', 'Самая новая': 'Newest', 'Лучшая по Discogs': 'Best rated',
+  'Что это за сайт?': 'What is this site?', 'Что это за сайт': 'What is this site', 'Понятно': 'Got it',
+  'Домашняя коллекция Паши, Алины и Феди: книги и виниловые пластинки, которые стоят у нас дома.': 'The home collection of Pasha, Alina and Fedya: the books and vinyl records on our shelves.',
+  'Книги и винил': 'Books and vinyl', 'Переключайте вкладки вверху страницы.': 'Switch between the tabs at the top of the page.',
+  'Карточка': 'Card', 'Нажмите на обложку — откроется описание, год, оценки и место, где стоит книга.': 'Tap a cover to see the description, year, ratings and where the book stands.',
+  'Поиск': 'Search', 'Ищите по названию или автору, фильтруйте по комнате и по тому, кто уже прочитал.': 'Search by title or author, filter by room and by who has already read it.',
+  'Подсказки': 'Ideas', '«Что почитать?» выберет книгу наугад, «Статистика» и «Карта полок» покажут коллекцию целиком.': '“What to read?” picks a book at random; “Statistics” and “Shelf map” show the whole collection.',
+  'Пополнение': 'Adding', 'Добавлять и править могут только хозяева после входа: книги сканируются по штрихкоду, пластинки — по штрихкоду или каталожному номеру.': 'Only the owners can add and edit, after signing in: books are scanned by barcode, records by barcode or catalogue number.',
+  'Описания и обложки подтягиваются из открытых каталогов, оценки — с Goodreads и Discogs.': 'Descriptions and covers come from open catalogues, ratings from Goodreads and Discogs.',
 };
 const EN_PATTERNS = [[/^Версия (\d+)$/, 'Version $1']];
 const EN_PLURALS = { 'книга': ['book', 'books'], 'пластинка': ['record', 'records'], 'оценка': ['rating', 'ratings'], 'страница': ['page', 'pages'], 'автор': ['author', 'authors'], 'комната': ['room', 'rooms'] };
@@ -1402,6 +1410,7 @@ swipeToClose($('sheet'), () => closeSheet());
 swipeToClose($('pickSheet'), () => { $('pickSheet').hidden = true; });
 swipeToClose($('statsSheet'), () => { $('statsSheet').hidden = true; });
 swipeToClose($('mapSheet'), () => { $('mapSheet').hidden = true; });
+swipeToClose($('helpSheet'), () => { $('helpSheet').hidden = true; });
 swipeToClose($('addSheet'), () => closeAddSheet());
 
 $('cancelBtn').addEventListener('click', closeSheet);
@@ -2750,6 +2759,8 @@ $('quick').addEventListener('click', (e) => {
 /* ---------- menu: backup + settings ---------- */
 
 $('menuBtn').addEventListener('click', (e) => { e.stopPropagation(); $('menu').hidden = !$('menu').hidden; });
+$('helpBtn').addEventListener('click', () => { $('menu').hidden = true; $('helpSheet').hidden = false; });
+$('helpSheet').addEventListener('click', (e) => { if (e.target.id === 'helpSheet' || e.target.closest('#helpClose')) $('helpSheet').hidden = true; });
 document.addEventListener('click', () => { $('menu').hidden = true; });
 
 $('menu').addEventListener('click', (e) => {
@@ -2889,6 +2900,7 @@ document.addEventListener('keydown', (e) => {
   else if (!$('pickSheet').hidden) $('pickSheet').hidden = true;
   else if (!$('statsSheet').hidden) $('statsSheet').hidden = true;
   else if (!$('mapSheet').hidden) $('mapSheet').hidden = true;
+  else if (!$('helpSheet').hidden) $('helpSheet').hidden = true;
   else if (fan) closeFan();
 });
 
